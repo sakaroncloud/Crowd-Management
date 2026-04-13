@@ -134,6 +134,36 @@ CrowdSync is built for massive efficiency. Below is a monthly cost estimation fo
 
 ---
 
+## 🏛️ Well-Architected Framework Alignment
+
+CrowdSync is engineered to align with the **AWS Well-Architected Framework**, ensuring the system is built on industry-standard best practices.
+
+### ⚙️ 1. Operational Excellence
+*   **Why**: To ensure reliable deployments and deep visibility into system health.
+*   **How**: 100% of the infrastructure is managed via **Terraform (IaC)**. The `manage.py` script automates the complex "Two-Phase" deployment lifecycle, and **CloudWatch Alarms** provide automated alerting for execution failures.
+
+### 🛡️ 2. Security
+*   **Why**: To protect sensitive telemetry data and maintain administrative trust.
+*   **How**: Implements **Cognito** for managed identity, **CloudFront OAC** for origin protection, **IAM Least-Privilege** for compute roles, and **SSM SecureStrings** for encrypted secret management.
+
+### 💎 3. Reliability
+*   **Why**: To maintain uptime during critical high-occupancy events.
+*   **How**: Leverages **Serverless primitives** (Lambda, DynamoDB, S3) which are distributed across multiple Availability Zones by default. Remote state management with locking prevents configuration drift and data corruption.
+
+### 🚀 4. Performance Efficiency
+*   **Why**: To provide near real-time visualization for large crowd flows.
+*   **How**: Uses **DynamoDB** (NoSQL) for sub-millisecond data retrieval and **CloudFront** (CDN) to serve the dashboard from edge locations globally, reducing latency for operators.
+
+### 💰 5. Cost Optimization
+*   **Why**: To minimize overhead for venues that may only operate during events.
+*   **How**: The architecture is **purely serverless**. You pay 0$ for idle compute. Using **Pay-per-Request** models for DynamoDB and API Gateway ensures you only pay for actual crowd data ingested.
+
+### 🌿 6. Sustainability
+*   **Why**: To minimize the environmental footprint of digital operations.
+*   **How**: By utilizing high-utilization shared infrastructure (Serverless), CrowdSync drastically reduces the energy waste associated with under-utilised physical servers or dedicated EC2 instances.
+
+---
+
 ## 🧹 Maintenance
 
 ## 📂 Project Navigation
