@@ -9,22 +9,27 @@
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ System Architectures
+
+CrowdSync is designed to evolve from a functional prototype into a high-scale industrial monitoring system. Below are the two implementation paths.
+
+### Stage 1: Functional Prototype (Current)
+*Designed for rapid validation, low cost, and serverless agility.*
 
 ```text
                                   ╭──────────────────────────────────╮
-                                  │          AWS CLOUD (eu-west-2)   │
+                                  │   🌐 AWS CLOUD (Prototype)       │
       ╔═══════════════════════════╧══════════════════════════════════╧═══════════════════════════╗
       ║                                                                                          ║
-      ║   ╭───────────────╮          ╭────────────────╮          ╭───────────────────────────╮   ║
-      ║   │  🔐 COGNITO   │◀──┬───▶  │  🌐 API GATEWAY │  ──────▶  │   ⚡ LAMBDA FUNCTIONS      │   ║
-      ║   │  User Identity│   │      │   HTTP API v2  │          │   (Ingest, Read, Auth)    │   ║
-      ║   ╰───────────────╯   │      ╰────────────────╯          ╰─────────────┬─────────────╯   ║
-      ║                       │                                                │                 ║
-      ║                       ▼                                                ▼                 ║
+      ║   ╭────────────────╮         ╭────────────────╮          ╭───────────────────────────╮   ║
+      ║   │  🔐 COGNITO    │ ◀──┬──▶ │  🌐 API GATEWAY │  ──────▶  │   ⚡ LAMBDA FUNCTIONS      │   ║
+      ║   │  JWT Auth      │    │    │   HTTP API v2  │          │   (Ingest, Read, Auth)    │   ║
+      ║   ╰────────────────╯    │    ╰────────────────╯          ╰─────────────┬─────────────╯   ║
+      ║                         │                                              │                 ║
+      ║                         ▼                                              ▼                 ║
       ║   ╭───────────────────────╮          ╭────────────────╮          ╭───────────────────╮   ║
       ║   │  📦 SSM PARAMETER     │  ◀─────  │  🛡️ AUTHORIZER  │          │   📊 DYNAMODB     │   ║
-      ║   │  Ingest API Token     │          │  Lambda-based  │          │   Zones Table     │   ║
+      ║   │  Secure API Token     │          │  Lambda-based  │          │   Zones Table     │   ║
       ║   ╰───────────────────────╯          ╰────────────────╯          ╰───────────────────╯   ║
       ║                                                                                          ║
       ║   ╭───────────────────────╮          ╭────────────────╮          ╭───────────────────╮   ║
@@ -32,15 +37,79 @@
       ║   │  Global Dashboard     │          │  Static Hosting │          │   Critical Alerts │   ║
       ║   ╰───────────────────────╯          ╰────────────────╯          ╰───────────────────╯   ║
       ║                                                                                          ║
+      ╚════════════╦══════════════════════════════════════════════════════════╦══════════════════╝
+                   ║                                                          ║
+                   ▼                                                          ▼
+      ╭──────────────────────────╮                               ╭──────────────────────────╮
+      │   💻 PYTHON SIMULATOR    │                               │   🖥️ REACT DASHBOARD    │
+      │   (Ingest API Client)    │                               │   (15s Auto-Polling)     │
+      ╰──────────────────────────╯                               ╰──────────────────────────╯
+```
+
+### Stage 2: Enterprise Venue (Real-World)
+*Designed for tens of thousands of sensors, massive concurrency, and 99.99% availability.*
+
+```text
+                                  ╭──────────────────────────────────╮
+                                  │   🏢 AWS CLOUD (Production)      │
+      ╔═══════════════════════════╧══════════════════════════════════╧═══════════════════════════╗
+      ║                                                                                          ║
+      ║   ╭────────────────╮          ╭────────────────╮          ╭───────────────────────────╮  ║
+      ║   │  🛡️ AWS WAF     │ ◀──────  │  🕸️ APP SYNC   │  ──────▶  │   ⚡ LAMBDA RESOLVERS     │  ║
+      ║   │  Edge Guard    │          │  GraphQL / WS  │          │   High-Performance Logic  │  ║
+      ║   ╰────────────────╯          ╰────────────────╯          ╰─────────────┬─────────────╯  ║
+      ║          ▲                           ▲                                  │                ║
+      ║          │                           │            (Real-time Push)      ▼                ║
+      ║          │                           │                         ╭───────────────────╮     ║
+      ║   ╭──────┴─────────╮          ╭──────┴─────────╮               │   📊 DYNAMODB     │     ║
+      ║   │  🛰️ IoT CORE    │ ──────▶  │  🌊 KINESIS    │ ──────▶       │   Global Tables   │     ║
+      ║   │  mTLS Auth     │          │  Data Streams  │               ╰───────────────────╯     ║
+      ║   ╰────────────────╯          ╰────────────────╯                         │                ║
+      ║          ▲                                                               ▼                ║
+      ║          │                                                     ╭───────────────────╮     ║
+      ║   ╭──────┴─────────╮          ╭────────────────╮               │   🧠 SAGEMAKER    │     ║
+      ║   │ 📷 CV SENSORS  │          │  📦 DATA LAKE  │ ◀──────       │   Predictive AI   │     ║
+      ║   │ AI Edge Vision │          │   S3 / Athena  │               ╰───────────────────╯     ║
+      ║   ╰────────────────╯          ╰────────────────╯                                         ║
       ║                                                                                          ║
       ╚═══════════════════════════════════════════════╦══════════════════════════════════════════╝
                                                       ║
                                                       ▼ 
                                          ╭──────────────────────────╮
-                                         │   🖥️ REACT DASHBOARD    │
-                                         │   (Vite + TypeScript)    │
+                                         │   📱 MOBILE DASHBOARD    │
+                                         │   (GraphQL Subscriptions)│
                                          ╰──────────────────────────╯
 ```
+
+---
+
+## 🛡️ Security & Compliance
+
+CrowdSync implements a multi-layered security model to protect telemetry data and administrative access.
+
+### 🔑 Identity & Access Control
+*   **Cognito User Pools**: Secure user authentication with mandated password complexity.
+*   **Authentication Challenge**: New administrators are forced to update their temporary password on first login via a custom security dashboard.
+*   **JWT Validation**: The `read` API requires a valid Cognito Identity Token in the `Authorization` header.
+*   **Least Privilege (IAM)**: Every Lambda function runs with a minimal policy, restricting access only to the specific DynamoDB tables, S3 buckets, or SNS topics they require.
+
+### 🛡️ Infrastructure Protection
+*   **CloudFront OAC (Origin Access Control)**: Restricts S3 bucket access solely to the CloudFront distribution. The bucket is not accessible via public internet.
+*   **API Gateway Authorizer**: The `ingest` endpoint is protected by a Lambda Authorizer that validates an `x-api-token` against an encrypted SSM parameter.
+*   **SSM SecureStrings**: Sensitive credentials like API tokens are stored as encrypted strings using AWS-managed KMS keys.
+*   **Masked Outputs**: Terraform outputs containing secret tokens are marked as `sensitive` to prevent them from appearing in CI/CD logs.
+
+### 📜 Data Protection
+*   **Encryption at Rest**:
+    *   **DynamoDB**: Encrypted using AWS-managed keys.
+    *   **S3**: AES-256 server-side encryption enabled for all log and frontend assets.
+*   **Encryption in Transit**: All communication between the simulator, dashboard, and AWS occurs over **TLS 1.2/1.3**.
+
+### 🌍 Real-World Security Evolution
+In a production setting, we recommend the following additional layers:
+1.  **AWS WAF**: Deploy a Web Application Firewall to block SQL injection and rate-limit abusive requests.
+2.  **Mutual TLS (mTLS)**: Use IoT Core's certificate-based authentication to ensure only verified hardware sensors can talk to the ingest pipeline.
+3.  **VPC Isolation**: Move Lambda functions into a private VPC with NAT Gateways to prevent direct outbound internet access.
 
 ---
 
@@ -53,122 +122,23 @@
 │   │   ├── 📄 App.tsx          # Real-time Telemetry & Notification Engine
 │   │   ├── 📄 aws-config.ts    # ⚡ Auto-injected AWS Configuration
 │   │   └── 📂 components/      # UI Design System (Shadcn/UI)
-│   └── 📄 package.json
-│
 ├── 📂 lambda_src/              # Serverless Application Logic
-│   ├── 🐍 ingest_handler.py    # Crowd Data Ingestion Pipeline
-│   ├── 🐍 read_handler.py     # High-Performance Read API
-│   └── 🐍 authorizer_handler.py # Robust API Token Validation
-│
 ├── 📂 modules/                 # Infrastructure-as-Code (Terraform)
-│   ├── 📦 cognito/             # Identity & Access Management
-│   ├── 📦 dynamodb/            # Schema-less Data Storage
-│   └── 📦 frontend/            # S3/CloudFront Distribution Layer
-│
 ├── 📂 scripts/                 # Automated Workflow Engine
 │   ├── 🐍 manage.py            # Phase-aware Deployment Mission Control
 │   └── 🐍 simulate.py          # Real-time Telemetry Simulator
-│
 ├── 📄 main.tf                   # Root Orchestrator
 └── 📄 README.md                 # Project Manifesto
 ```
 
 ---
 
-## ⚡ Quick Start
-
-### 1️⃣ Initial Infrastructure
-Ensure your Terraform backend is configured in `providers.tf`.
-
-### 2️⃣ Full Deployment
-Run the mission control script. It handles infrastructure, config injection, and frontend compilation in a single pass:
-```bash
-python3 scripts/manage.py up
-```
-
-### 3️⃣ Live Simulation
-Stream synthetic crowd data to your live dashboard:
-```bash
-python3 scripts/simulate.py
-```
-
----
-
-## 🌍 Real-World Evolution & Simulation
-
-### Why use `simulate.py`?
-In a development environment, physical sensors (cameras, IR beams, turnstiles) are often unavailable. The simulator serves three critical purposes:
-1.  **Logic Validation**: Ensures the Ingest Lambda correctly calculates status (Normal/Busy/Critical).
-2.  **UI Stress Testing**: Verifies the dashboard's ability to handle rapid telemetry updates.
-3.  **End-to-End Drills**: Tests the SNS alert pipeline without needing to physically crowd a room.
-
-### Scaling to Production: Service Deep-Dive
-
-In a professional venue deployment (e.g., a stadium or airport), the architecture would evolve to use these specialized AWS services:
-
-#### 📡 1. AWS IoT Core (Hardware Connectivity)
-Instead of our Python simulator sending HTTPS requests, physical sensors (cameras, IR beams, ESP32/Raspberry Pi) would connect via the **MQTT protocol**.
-*   **Protocol Efficiency**: MQTT is significantly lighter than HTTP, saving bandwidth and battery life for remote sensors.
-*   **Rules Engine**: IoT Core can route data directly to DynamoDB or SNS based on SQL-like statements (e.g., `SELECT * FROM 'crowd/data' WHERE count > 80`). This bypasses Lambda entirely, reducing latency and cost.
-*   **Device Shadows**: A digital twin of every sensor is maintained in the cloud. If a sensor goes offline, the dashboard displays the "Last Known State" from the Shadow until connectivity is restored.
-
-#### 🌊 2. Amazon Kinesis (High-Velocity Ingestion)
-If the venue has **tens of thousands of sensors** (e.g., high-resolution heatmaps), Kinesis provides the ingestion backbone.
-*   **Sharded Streams**: Kinesis can ingest millions of events per second. It acts as a high-durability "shock absorber" to prevent your backend from being overwhelmed during peak crowd surges (e.g., a stadium exit).
-*   **Data Analytics**: You can run real-time SQL queries over the moving data to detect anomalies (e.g., "Is the crowd density in Sector 4 increasing faster than the average?").
-
-#### 🕸️ 3. AWS AppSync (Real-Time UI)
-Our current dashboard uses **Polling** (checking every 15s). In production, we would use **GraphQL Subscriptions**.
-*   **WebSockets**: AppSync maintains a persistent connection between the browser and the cloud.
-*   **Push Notifications**: As soon as a sensor value changes in DynamoDB, AppSync **pushes** the new value to the dashboard instantly. There is zero polling lag, and the UI feels "alive."
-
-#### 🏗️ 4. AWS IoT SiteWise (Asset Modeling)
-For complex facilities, SiteWise organizes data according to the physical layout.
-*   **Asset Hierarchies**: You can model the relationship between "Venue" → "Floor" → "Zone" → "Gate."
-*   **Automated Metrics**: SiteWise calculates higher-level KPIs (Key Performance Indicators) automatically, such as "Total Venue Occupancy" or "Gate Throughput Per Minute," without requiring custom Lambda code.
-
----
-
 ## 🧪 Deployment Intelligence
 
-This project uses a **Two-Phase Deployment** strategy implemented in `manage.py`:
-
-| Execution Phase | Action |
-| :--- | :--- |
-| **Phase I: Provisioning** | Terraform builds the AWS environment and outputs unique Resource IDs. |
-| **Phase II: Injection** | Python extracts IDs and injects them directly into `dashboard/src/aws-config.ts`. |
-| **Phase III: Compilation** | The dashboard is compiled with the *correct* live credentials. |
-| **Phase IV: Distribution** | Terraform re-syncs the final bundle to the S3/CloudFront edge nodes. |
-
----
-
-## 🛠️ Infrastructure Core
-
-*   **🔒 Identity**: Cognito User Pools with strict administrative control and "First Login" password enforcement.
-*   **📡 Networking**: CloudFront OAC (Origin Access Control) for secure, low-latency edge delivery.
-*   **📊 Storage**: DynamoDB Pay-Per-Request table with 6 pre-seeded zones for immediate visualization.
-*   **🔔 Alerts**: SNS integration triggers notifications on capacity breaches (80%+ occupancy).
-
----
-
-## 📈 Dashboard Logic
-
-The dashboard polls at **15s intervals** with intelligent state tracking:
-*   **Normal (0-50)**: Green indicators. "Steady State."
-*   **Busy (51-80)**: Yellow warnings. "Monitor Flow."
-*   **Critical (81+)**: Red pulsing alerts. "Restrict Entry / Redirect Flow."
-
-*Toasts and bell notifications only trigger on status transitions to minimize noise.*
-
----
-
-## 🧹 Maintenance
-
-**Wipe Environment:**
-```bash
-python3 scripts/manage.py down
-```
-*Requires manual 'yes' confirmation. Irreversible deletion of DynamoDB datasets and Cognito identities.*
+This project uses a **Two-Phase Deployment** strategy in `manage.py`:
+- **Phase I**: Provisions infrastructure and generates unique AWS IDs.
+- **Phase II**: Injects live IDs into `dashboard/src/aws-config.ts`.
+- **Phase III**: Compiles the React dashboard and performs a final sync to the CDN.
 
 ---
 *✥ Crafted for Operational Excellence ✥*
