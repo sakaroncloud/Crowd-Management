@@ -94,6 +94,26 @@ python3 scripts/simulate.py
 
 ---
 
+## 🌍 Real-World Evolution & Simulation
+
+### Why use `simulate.py`?
+In a development environment, physical sensors (cameras, IR beams, turnstiles) are often unavailable. The simulator serves three critical purposes:
+1.  **Logic Validation**: Ensures the Ingest Lambda correctly calculates status (Normal/Busy/Critical).
+2.  **UI Stress Testing**: Verifies the dashboard's ability to handle rapid telemetry updates.
+3.  **End-to-End Drills**: Tests the SNS alert pipeline without needing to physically crowd a room.
+
+### Scaling to Production
+For a real-world deployment, this system would evolve to use specialized AWS IoT and Streaming services:
+
+| Current Component | Production Alternative | Benefit |
+| :--- | :--- | :--- |
+| **Python Simulator** | **AWS IoT Core** | Connects physical hardware using **MQTT** (low-bandwidth) and manages "Device Shadows" for offline support. |
+| **API Gateway (Ingest)** | **Amazon Kinesis** | Buffers high-volume data from thousands of sensors, preventing Lambda cold-start or concurrency bottlenecks. |
+| **Dashboard Polling** | **AWS AppSync** | Replaces 15s polling with **WebSockets**, pushing updates to the dashboard *instantly* as they happen. |
+| **Manual Capacity** | **AWS IoT SiteWise** | Automatically models asset hierarchies and calculates complex metrics like "Peak Occupancy Trends." |
+
+---
+
 ## 🧪 Deployment Intelligence
 
 This project uses a **Two-Phase Deployment** strategy implemented in `manage.py`:
