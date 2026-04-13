@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+
+  --color-background: oklch(0.99 0.005 30);
+  --color-foreground: oklch(0.15 0.02 30);
+
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.15 0.02 30);
+
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.15 0.02 30);
+
+  --color-primary: oklch(0.58 0.20 35); /* Refined vermillion */
+  --color-primary-foreground: oklch(0.99 0.01 35);
+
+  --color-secondary: oklch(0.97 0.01 35);
+  --color-secondary-foreground: oklch(0.35 0.08 35);
+
+  --color-muted: oklch(0.97 0.01 35);
+  --color-muted-foreground: oklch(0.45 0.03 35);
+
+  --color-accent: oklch(0.58 0.20 35 / 0.08);
+  --color-accent-foreground: oklch(0.58 0.20 35);
+
+  --color-destructive: oklch(0.55 0.22 25);
+  --color-destructive-foreground: oklch(0.99 0.01 25);
+
+  --color-border: oklch(0.94 0.01 35);
+  --color-input: oklch(0.94 0.01 35);
+  --color-ring: oklch(0.58 0.20 35 / 0.3);
+
+  --radius-lg: 1.0rem;
+  --radius-md: 0.6rem;
+  --radius-sm: 0.4rem;
+
+  --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+@layer base {
+  :root {
+    /* Premium Executive Light Palette */
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    
+    --primary: 238.7 76.5% 59.4%; /* Royal Indigo */
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
+    --destructive: 346.8 87.2% 52.5%; /* Soft Rose/Red */
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 238.7 76.5% 59.4%;
+    
+    --radius: 1rem;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-glass;
+  }
+  
+  .text-display {
+    font-family: var(--font-display);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold tracking-tight;
+  }
+}
+
+/* Animations */
+@keyframes soft-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 2s infinite ease-in-out;
+}
