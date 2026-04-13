@@ -113,6 +113,29 @@ In a production setting, we recommend the following additional layers:
 
 ---
 
+## 💰 Cost Economics
+
+CrowdSync is built for massive efficiency. Below is a monthly cost estimation for a **10,000-person venue** in the **eu-west-2 (London)** region, assuming 100 sensors and 50 concurrent staff.
+
+| Service | Usage (Approx. 35M total req/mo) | Monthly Cost |
+| :--- | :--- | :--- |
+| **🌐 API Gateway** | HTTP API v2 ($1.00 per 1M) | **$35.00** |
+| **⚡ AWS Lambda** | 35M Executions (128MB, 100ms) | **$12.40** |
+| **📊 DynamoDB** | 26M Ingest Writes + 9M UI Reads | **$34.75** |
+| **☁️ CloudFront** | 50GB Data Transfer | **$4.25** |
+| **📦 S3 Storage** | 10GB (Logs + Static Artifacts) | **$0.23** |
+| **🔐 Cognito** | 50 Active Management Accounts | **FREE** |
+| **TOTAL** | *Excluding first-year Free Tier* | **~$86.63** |
+
+### ✥ Efficiency Strategies
+1.  **Pay-for-Value**: If the venue is closed (0 requests), your monthly costs drop to nearly **$0.23** (storage only).
+2.  **Scale Factor**: Doubling sensors only adds ~$35/month.
+3.  **IoT Evolution**: Switching the Ingest layer to **AWS IoT Core** for real-world hardware can reduce API costs by **up to 70%**.
+
+---
+
+## 🧹 Maintenance
+
 ## 📂 Project Navigation
 
 ```text
