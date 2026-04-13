@@ -16,9 +16,7 @@
     "jsx": "react-jsx",
 
     /* Linting */
-    "ignoreDeprecations": "6.0",
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
