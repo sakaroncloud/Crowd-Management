@@ -18,3 +18,8 @@ variable "sns_arn" {
   type        = string
 }
 
+variable "metadata_arn" {
+  description = "ARN of the DynamoDB metadata table"
+  type        = string
+}
+

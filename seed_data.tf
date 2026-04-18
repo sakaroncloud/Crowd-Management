@@ -67,3 +67,26 @@ resource "aws_dynamodb_table_item" "seed_zones" {
     ignore_changes = [item]
   }
 }
+
+locals {
+  seed_metadata = [
+    { zoneId = "ZONE-A1", capacity = 100, zoneName = "Main Entrance" },
+    { zoneId = "ZONE-B2", capacity = 80,  zoneName = "Food Court" },
+    { zoneId = "ZONE-C3", capacity = 120, zoneName = "VIP Lounge" },
+    { zoneId = "ZONE-D4", capacity = 60,  zoneName = "South Exit" },
+    { zoneId = "ZONE-E5", capacity = 90,  zoneName = "Main Stage" },
+    { zoneId = "ZONE-F6", capacity = 50,  zoneName = "Staff Gallery" },
+  ]
+}
+
+resource "aws_dynamodb_table_item" "seed_metadata" {
+  for_each   = { for m in local.seed_metadata : m.zoneId => m }
+  table_name = module.dynamodb.metadata_table_name
+  hash_key   = "zoneId"
+
+  item = jsonencode({
+    zoneId   = { S = each.value.zoneId }
+    capacity = { N = tostring(each.value.capacity) }
+    zoneName = { S = each.value.zoneName }
+  })
+}

@@ -15,8 +15,12 @@ import time
 import random
 import urllib.request
 import urllib.error
+import ssl
 from datetime import datetime
 from pathlib import Path
+
+# Bypass SSL verification (Commonly required for macOS Python environments)
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # ── Configuration ────────────────────────────────────────────
 ROOT_DIR     = Path(__file__).parent.parent.resolve()  # project root (one level above scripts/)
@@ -86,8 +90,10 @@ def post_zone(api_url: str, token: str, zone_id: str, count: int) -> int:
             return resp.status
     except urllib.error.HTTPError as e:
         return e.code
-    except Exception:
-        return 0
+    except Exception as e:
+        # Return a negative number or specific code to indicate a local/network error
+        print(f"  [!] Connection Error: {e}")
+        return -1
 
 # ── Main ──────────────────────────────────────────────────────
 def main():
@@ -124,6 +130,9 @@ def main():
                         f"{zone_id} → {count:>3} people  "
                         f"[{colour(label, label_colour)}]"
                     )
+                elif http_status == -1:
+                    # Connection/SSL error already printed by post_zone
+                    pass
                 else:
                     print(colour(
                         f"  [{datetime.now().strftime('%H:%M:%S')}] "

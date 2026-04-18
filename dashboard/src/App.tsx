@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Amplify, Auth } from 'aws-amplify';
+import { Amplify, Auth, API, graphqlOperation } from 'aws-amplify';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import { 
   RefreshCw, 
@@ -31,6 +31,7 @@ import './index.css';
 
 // Configure Amplify with Cookie Storage for enhanced security
 Amplify.configure({
+  ...awsConfig,
   Auth: {
     ...awsConfig.Auth,
     cookieStorage: {
@@ -41,26 +42,25 @@ Amplify.configure({
       secure: window.location.protocol === 'https:'
     }
   },
-  API: awsConfig.API
+  // Unified API configuration for both REST and GraphQL
+  API: {
+    ...awsConfig.API,
+    graphql_endpoint: awsConfig.aws_appsync_graphqlEndpoint,
+    graphql_region: awsConfig.aws_appsync_region,
+    graphql_authenticationType: awsConfig.aws_appsync_authenticationType,
+  }
 });
 
 interface Zone {
   zoneId: string;
   crowdCount: number;
+  capacity: number;
   status: 'Normal' | 'Busy' | 'Critical';
   action: string;
   lastUpdated: string;
 }
 
 // Static venue capacity per zone (could be stored in DynamoDB in production)
-const ZONE_CAPACITY: Record<string, number> = {
-  'ZONE-A1': 100,
-  'ZONE-B2': 80,
-  'ZONE-C3': 120,
-  'ZONE-D4': 60,
-  'ZONE-E5': 90,
-  'ZONE-F6': 50,
-};
 const DEFAULT_CAPACITY = 100;
 
 interface CriticalNotification {
@@ -69,6 +69,8 @@ interface CriticalNotification {
   crowdCount: number;
   action: string;
   timestamp: Date;
+  recommendedZoneId?: string;
+  recommendedZonePercent?: number;
 }
 
 // ─── Critical Alert Toast ────────────────────────────────────────────────────
@@ -116,6 +118,25 @@ const CriticalAlertToast: React.FC<{
             <p className="text-xs text-slate-500 font-medium mt-1">
               {notification.crowdCount} occupants · {notification.action}
             </p>
+
+            {/* NEW: Re-direction Recommendation */}
+            {notification.recommendedZoneId && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <MapPin size={10} className="text-emerald-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+                    Diversion Recommended
+                  </span>
+                </div>
+                <div className="bg-emerald-50/50 rounded-xl p-2.5 border border-emerald-100/50 flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-emerald-700 whitespace-nowrap">Alternative: {notification.recommendedZoneId}</span>
+                  <div className="shrink-0 flex items-center gap-1 bg-white px-2 py-0.5 rounded-full border border-emerald-200 shadow-sm">
+                    <span className="text-[10px] font-black text-emerald-600">{notification.recommendedZonePercent}%</span>
+                    <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-tighter">Cap</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Dismiss */}
@@ -214,6 +235,12 @@ const NotificationBell: React.FC<{
                       <span className="text-[9px] text-slate-400">{n.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <p className="text-xs font-bold text-slate-800">{n.crowdCount} occupants — {n.action}</p>
+                    {n.recommendedZoneId && (
+                      <div className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 w-fit px-2 py-0.5 rounded-md">
+                        <MapPin size={8} />
+                        Redirect to {n.recommendedZoneId}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -246,62 +273,168 @@ const Dashboard: React.FC = () => {
     setHistory([]);
   }, []);
 
+  const onUpdateZone = `
+    subscription OnUpdateZone {
+      onUpdateZone {
+        zoneId
+        crowdCount
+        capacity
+        status
+        action
+        lastUpdated
+      }
+    }
+  `;
+
+  const calculateStatus = (count: number, capacity: number): 'Normal' | 'Busy' | 'Critical' => {
+    const pct = (count / capacity) * 100;
+    if (pct >= 90) return 'Critical';
+    if (pct >= 70) return 'Busy';
+    return 'Normal';
+  };
+
+  const processUpdate = useCallback((updatedZone: any) => {
+    setZones(prev => {
+      const idx = prev.findIndex(z => z.zoneId === updatedZone.zoneId);
+      const newStatus = calculateStatus(updatedZone.crowdCount, updatedZone.capacity);
+      const newZone = { 
+        ...updatedZone, 
+        status: newStatus,
+        action: newStatus === 'Critical' ? 'Restrict Entry / Redirect Flow' : 'No Action'
+      };
+
+      if (newStatus === 'Critical') {
+        const recommendation = findBestRedirectionZone(prev, newZone.zoneId);
+        const notification: CriticalNotification = {
+          id: Math.random().toString(36).substr(2, 9),
+          zoneId: newZone.zoneId,
+          crowdCount: newZone.crowdCount,
+          action: newZone.action,
+          timestamp: new Date(),
+          recommendedZoneId: recommendation?.zoneId,
+          recommendedZonePercent: recommendation?.occupancyPercent
+        };
+        setToasts(t => [...t, notification].slice(-3));
+        setHistory(h => [notification, ...h].slice(0, 50));
+      }
+
+      if (idx === -1) return [...prev, newZone];
+      const next = [...prev];
+      next[idx] = newZone;
+      return next;
+    });
+  }, []);
+
+  const listZones = `
+    query ListZones {
+      listZones {
+        zoneId
+        crowdCount
+        capacity
+        status
+        action
+        lastUpdated
+      }
+    }
+  `;
+
+  // ─── Predictive Redirection Logic ──────────────────────────────────────────
+  const findBestRedirectionZone = (currentZones: Zone[], sourceId: string) => {
+    // Candidates are zones that are NOT the critical one and are NOT themselves busy/critical
+    const candidates = currentZones
+      .filter(z => z.zoneId !== sourceId && z.status === 'Normal')
+      .map(z => ({
+        ...z,
+        occupancyPercent: Math.round((z.crowdCount / z.capacity) * 100)
+      }))
+      .sort((a, b) => a.occupancyPercent - b.occupancyPercent);
+
+    return candidates.length > 0 ? candidates[0] : null;
+  };
+
   const fetchZones = async () => {
     setLoading(true);
     setError(null);
     try {
+      console.log("DEBUG: Validating session for GraphQL Query...");
       const session = await Auth.currentSession();
-      if (!session) throw new Error('Secure session not established');
+      if (!session) throw new Error('Session expired');
+      
       const token = session.getIdToken().getJwtToken();
+      console.log("DEBUG: Session valid. Fetching initial state...");
 
-      const response = await fetch(`${awsConfig.API.endpoints[0].endpoint}/zones`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await API.graphql({
+        query: listZones,
+        authToken: token
+      }) as any;
 
-      if (!response.ok) {
-        if (response.status === 401) throw new Error('Security Link Expired - Re-authenticating...');
-        throw new Error('Failed to fetch monitoring data');
-      }
+      const data: Zone[] = response.data.listZones || [];
+      console.log(`DEBUG: Successfully loaded ${data.length} zones.`);
 
-      const data: Zone[] = await response.json();
+      const newToasts: CriticalNotification[] = [];
+      const processedZones = data.map((z: any) => {
+        const zoneStatus = calculateStatus(z.crowdCount, z.capacity);
+        const zone = {
+          ...z,
+          status: zoneStatus,
+          action: zoneStatus === 'Critical' ? 'Restrict Entry / Redirect Flow' : 'No Action'
+        };
 
-      // Detect zones that just became Critical
-      const newNotifications: CriticalNotification[] = [];
-      data.forEach(zone => {
-        const prevStatus = prevZonesRef.current.get(zone.zoneId);
-        if (zone.status === 'Critical' && prevStatus !== 'Critical') {
-          const notification: CriticalNotification = {
-            id: `${zone.zoneId}-${Date.now()}`,
+        if (zone.status === 'Critical') {
+          const recommendation = findBestRedirectionZone(data, zone.zoneId);
+          newToasts.push({
+            id: Math.random().toString(36).substr(2, 9),
             zoneId: zone.zoneId,
             crowdCount: zone.crowdCount,
             action: zone.action,
             timestamp: new Date(),
-          };
-          newNotifications.push(notification);
+            recommendedZoneId: recommendation?.zoneId,
+            recommendedZonePercent: recommendation?.occupancyPercent
+          });
         }
+        return zone;
       });
 
-      if (newNotifications.length > 0) {
-        setToasts(t => [...newNotifications, ...t].slice(0, 5));
-        setHistory(h => [...newNotifications, ...h].slice(0, 20));
+      if (newToasts.length > 0) {
+        setToasts(t => [...t, ...newToasts].slice(-3));
+        setHistory(h => [...newToasts, ...h].slice(0, 50));
       }
 
       // Update previous status map
-      prevZonesRef.current = new Map(data.map(z => [z.zoneId, z.status]));
-      setZones(data);
+      prevZonesRef.current = new Map(processedZones.map(z => [z.zoneId, z.status]));
+      setZones(processedZones);
     } catch (err: any) {
-      console.error('Telemetry Sync Error:', err);
-      setError(err.message);
+      console.error('DEBUG ERROR: GraphQL Query Sync failed:', err);
+      setError(err.message || 'Failed to fetch monitoring data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchZones(), 1000);
-    const interval = setInterval(fetchZones, 15000);
-    return () => { clearTimeout(timer); clearInterval(interval); };
-  }, []);
+    fetchZones(); // Initial load
+    console.log("DEBUG: Initialising Real-time Cloud Bus connection...");
+
+    // Subscribe to real-time updates
+    const subscription = (API.graphql(
+      graphqlOperation(onUpdateZone)
+    ) as any).subscribe({
+      next: ({ value }: any) => {
+        console.log("DEBUG: Real-time update received!", value.data.onUpdateZone);
+        const zone = value.data.onUpdateZone;
+        processUpdate(zone);
+      },
+      error: (err: any) => {
+        console.error('DEBUG ERROR: Subscription failed:', err);
+        setError("Real-time connection interrupted. Please refresh.");
+      }
+    });
+
+    return () => {
+      console.log("DEBUG: Cleaning up subscription...");
+      subscription.unsubscribe();
+    };
+  }, [onUpdateZone, processUpdate]);
 
   const totalPeople = zones.reduce((acc, z) => acc + z.crowdCount, 0);
   const criticalCount = zones.filter(z => z.status === 'Critical').length;
@@ -445,7 +578,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Capacity Bar */}
                         {(() => {
-                          const cap = ZONE_CAPACITY[zone.zoneId] ?? DEFAULT_CAPACITY;
+                          const cap = zone.capacity ?? DEFAULT_CAPACITY;
                           const pct = Math.min(100, Math.round((zone.crowdCount / cap) * 100));
                           const barColor =
                             zone.status === 'Critical' ? 'bg-red-500' :

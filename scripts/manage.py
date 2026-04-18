@@ -33,9 +33,20 @@ def colour(text: str, code: str) -> str:
     return f"{code}{text}{C.RESET}"
 
 # ── Helpers ───────────────────────────────────────────────────
+def get_env():
+    """Build a custom environment with necessary paths."""
+    env = os.environ.copy()
+    extra_paths = [
+        "/Users/sakaroncloud/.nvm/versions/node/v24.11.1/bin",
+        "/opt/homebrew/bin",
+        "/usr/local/bin"
+    ]
+    env["PATH"] = ":".join(extra_paths) + ":" + env.get("PATH", "")
+    return env
+
 def run(cmd: list[str], cwd: Path = ROOT_DIR) -> int:
     """Run a command, stream output live, return exit code."""
-    result = subprocess.run(cmd, cwd=cwd)
+    result = subprocess.run(cmd, cwd=cwd, env=get_env())
     return result.returncode
 
 def tf(*args: str) -> int:
@@ -72,8 +83,11 @@ def check_dependencies():
         sys.exit(1)
     print(colour("[✓] Terraform ready.", C.GREEN))
 
-    npm = subprocess.run(["npm", "--version"], capture_output=True)
-    if npm.returncode != 0:
+    try:
+        npm = subprocess.run(["npm", "--version"], capture_output=True, env=get_env())
+        if npm.returncode != 0:
+            raise FileNotFoundError()
+    except (FileNotFoundError, Exception):
         print(colour("[!] npm not found — UI build will fail.", C.RED))
         sys.exit(1)
     print(colour("[✓] npm ready.", C.GREEN))
@@ -97,8 +111,9 @@ def update_aws_config() -> None:
     user_pool_id = tf_output("cognito_user_pool_id")
     client_id    = tf_output("cognito_client_id")
     api_endpoint = tf_output("api_endpoint")
+    graphql_url  = tf_output("graphql_endpoint")
 
-    if not all([user_pool_id, client_id, api_endpoint]):
+    if not all([user_pool_id, client_id, api_endpoint, graphql_url]):
         print(colour("[!] Could not read Terraform outputs — skipping config update.", C.RED))
         return
 
@@ -117,7 +132,10 @@ const awsConfig = {{
                 region: '{region}',
             }}
         ]
-    }}
+    }},
+    aws_appsync_graphqlEndpoint: '{graphql_url}',
+    aws_appsync_region: '{region}',
+    aws_appsync_authenticationType: 'AMAZON_COGNITO_USER_POOLS',
 }}
 
 export default awsConfig;
@@ -178,6 +196,7 @@ def cmd_status():
         "API Gateway":    tf_output("api_endpoint"),
         "App Client ID":  tf_output("cognito_client_id"),
         "User Pool ID":   tf_output("cognito_user_pool_id"),
+        "GraphQL (Bus)":  tf_output("graphql_endpoint"),
         "Frontend (CDN)": tf_output("frontend_url"),
     }
 

@@ -23,3 +23,12 @@ output "frontend_url" {
   description = "The CloudFront URL of the hosted React frontend"
   value       = module.frontend.cloudfront_url
 }
+output "graphql_endpoint" {
+  description = "The URL of the AppSync GraphQL endpoint"
+  value       = module.appsync.graphql_api_url
+}
+
+output "distribution_id" {
+  description = "The ID of the CloudFront distribution"
+  value       = module.frontend.cloudfront_id
+}

@@ -11,8 +11,19 @@ sns = boto3.client('sns')
 
 # Load environment variables
 TABLE_NAME = os.environ.get('TABLE_NAME')
+METADATA_TABLE = os.environ.get('METADATA_TABLE')
 BUCKET_NAME = os.environ.get('BUCKET_NAME')
 TOPIC_ARN = os.environ.get('TOPIC_ARN')
+
+def get_zone_metadata(zone_id):
+    """Fetch capacity and metadata for a zone."""
+    try:
+        table = dynamodb.Table(METADATA_TABLE)
+        response = table.get_item(Key={'zoneId': zone_id})
+        return response.get('Item', {})
+    except Exception as e:
+        print(f"Error fetching metadata for {zone_id}: {e}")
+        return {}
 
 def lambda_handler(event, context):
     print(f"Received event: {json.dumps(event)}")
@@ -29,14 +40,20 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Missing zoneId or crowdCount'})
             }
         
-        # Threshold logic
+        # 0. Fetch Metadata for dynamic thresholds
+        metadata = get_zone_metadata(zone_id)
+        capacity = int(metadata.get('capacity', 100)) # Default to 100 if not found
+        
+        # Threshold logic (Percentage based)
+        occupancy_rate = (crowd_count / capacity) * 100
+        
         status = "Normal"
         action = "No Action"
         
-        if crowd_count > 80:
+        if occupancy_rate > 80:
             status = "Critical"
             action = "Restrict Entry / Redirect Flow"
-        elif crowd_count > 50:
+        elif occupancy_rate > 50:
             status = "Busy"
             action = "Monitor closely"
             
@@ -48,6 +65,7 @@ def lambda_handler(event, context):
             Item={
                 'zoneId': zone_id,
                 'crowdCount': crowd_count,
+                'capacity': capacity,
                 'status': status,
                 'action': action,
                 'lastUpdated': timestamp

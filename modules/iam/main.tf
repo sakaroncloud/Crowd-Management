@@ -39,7 +39,10 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           "dynamodb:Scan"
         ]
         Effect   = "Allow"
-        Resource = var.dynamodb_arn
+        Resource = [
+          var.dynamodb_arn,
+          var.metadata_arn
+        ]
       },
     ]
   })
@@ -102,5 +105,68 @@ resource "aws_iam_role_policy" "lambda_ssm" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "lambda_dynamodb_streams" {
+  name = "${var.project_name}-lambda-dynamodb-streams"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams"
+        ]
+        Effect   = "Allow"
+        Resource = "*" # Fixed at resource level in production
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda_appsync" {
+  name = "${var.project_name}-lambda-appsync"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "appsync:GraphQL"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
+}
+
+# AppSync Logging Role
+resource "aws_iam_role" "appsync_logs" {
+  name = "${var.project_name}-appsync-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "appsync.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "appsync_logs" {
+  role       = aws_iam_role.appsync_logs.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs"
+}
+
 
 

@@ -4,8 +4,8 @@ resource "aws_apigatewayv2_api" "http" {
 
   cors_configuration {
     allow_origins = ["*"]
-    allow_methods = ["POST", "GET", "OPTIONS"]
-    allow_headers = ["content-type", "authorization"]
+    allow_methods = ["POST", "OPTIONS"]
+    allow_headers = ["content-type", "x-api-token"]
     max_age       = 300
   }
 
@@ -39,7 +39,7 @@ resource "aws_cloudwatch_log_group" "api_logs" {
   retention_in_days = 7
 }
 
-# Integrations
+# Integrations (ONLY INGEST)
 resource "aws_apigatewayv2_integration" "ingest" {
   api_id                 = aws_apigatewayv2_api.http.id
   integration_type       = "AWS_PROXY"
@@ -47,26 +47,7 @@ resource "aws_apigatewayv2_integration" "ingest" {
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_integration" "read" {
-  api_id                 = aws_apigatewayv2_api.http.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = var.read_lambda_invoke_arn
-  payload_format_version = "2.0"
-}
-
-# Authorizers
-resource "aws_apigatewayv2_authorizer" "cognito" {
-  api_id           = aws_apigatewayv2_api.http.id
-  authorizer_type  = "JWT"
-  identity_sources = ["$request.header.Authorization"]
-  name             = "cognito-authorizer"
-
-  jwt_configuration {
-    audience = [var.user_pool_client_id]
-    issuer   = "https://cognito-idp.${data.aws_region.current.name}.amazonaws.com/${var.user_pool_id}"
-  }
-}
-
+# Authorizers (ONLY TOKEN)
 resource "aws_apigatewayv2_authorizer" "lambda" {
   api_id                            = aws_apigatewayv2_api.http.id
   authorizer_type                   = "REQUEST"
@@ -77,9 +58,7 @@ resource "aws_apigatewayv2_authorizer" "lambda" {
   enable_simple_responses           = true
 }
 
-data "aws_region" "current" {}
-
-# Routes
+# Routes (ONLY CROWD-DATA)
 resource "aws_apigatewayv2_route" "post_data" {
   api_id             = aws_apigatewayv2_api.http.id
   route_key          = "POST /crowd-data"
@@ -88,37 +67,11 @@ resource "aws_apigatewayv2_route" "post_data" {
   authorizer_id      = aws_apigatewayv2_authorizer.lambda.id
 }
 
-
-resource "aws_apigatewayv2_route" "get_zones" {
-  api_id             = aws_apigatewayv2_api.http.id
-  route_key          = "GET /zones"
-  target             = "integrations/${aws_apigatewayv2_integration.read.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
-}
-
-resource "aws_apigatewayv2_route" "get_zone_by_id" {
-  api_id             = aws_apigatewayv2_api.http.id
-  route_key          = "GET /zones/{id}"
-  target             = "integrations/${aws_apigatewayv2_integration.read.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
-}
-
-
 # Permissions for Lambda
 resource "aws_lambda_permission" "api_ingest" {
   statement_id  = "AllowAPIGatewayInvokeIngest"
   action        = "lambda:InvokeFunction"
   function_name = var.ingest_lambda_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
-}
-
-resource "aws_lambda_permission" "api_read" {
-  statement_id  = "AllowAPIGatewayInvokeRead"
-  action        = "lambda:InvokeFunction"
-  function_name = var.read_lambda_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
@@ -130,4 +83,3 @@ resource "aws_lambda_permission" "api_auth" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
-

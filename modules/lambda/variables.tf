@@ -18,6 +18,11 @@ variable "dynamodb_table_name" {
   type        = string
 }
 
+variable "metadata_table_name" {
+  description = "Name of the DynamoDB metadata table"
+  type        = string
+}
+
 variable "s3_bucket_name" {
   description = "Name of the S3 bucket for logs"
   type        = string
@@ -33,3 +38,12 @@ variable "token_param_name" {
   type        = string
 }
 
+variable "appsync_url" {
+  description = "URL of the AppSync GraphQL API"
+  type        = string
+}
+
+variable "dynamodb_stream_arn" {
+  description = "ARN of the DynamoDB table stream"
+  type        = string
+}
