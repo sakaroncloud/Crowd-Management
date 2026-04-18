@@ -61,3 +61,45 @@ resource "aws_wafv2_web_acl" "main" {
     Environment = var.environment
   }
 }
+
+resource "aws_wafv2_web_acl" "regional" {
+  name        = "${var.project_name}-regional-acl-${var.environment}"
+  description = "Regional WAF ACL for API Gateway"
+  scope       = "REGIONAL"
+
+  default_action {
+    allow {}
+  }
+
+  rule {
+    name     = "AWSManagedRulesCommonRuleSet"
+    priority = 10
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesCommonRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "WAFRegionalCommonRules"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "${var.project_name}-regional-waf"
+    sampled_requests_enabled   = true
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+}

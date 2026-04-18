@@ -34,6 +34,11 @@ resource "aws_apigatewayv2_stage" "default" {
   }
 }
 
+resource "aws_wafv2_web_acl_association" "api_gateway" {
+  resource_arn = aws_apigatewayv2_stage.default.arn
+  web_acl_arn  = var.web_acl_arn
+}
+
 resource "aws_cloudwatch_log_group" "api_logs" {
   name              = "/aws/apigateway/${var.project_name}-api-${var.environment}"
   retention_in_days = 7

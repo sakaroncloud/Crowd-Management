@@ -72,3 +72,8 @@ variable "sqs_role_arn" {
   description = "ARN of the IAM role for API Gateway SQS integration"
   type        = string
 }
+variable "web_acl_arn" {
+  description = "The ARN of the WAF Web ACL to associate with the API Gateway stage"
+  type        = string
+  default     = ""
+}

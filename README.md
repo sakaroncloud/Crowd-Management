@@ -64,19 +64,21 @@ flowchart TB
     end
 
     %% Data Flow (Zero to End)
-    TS -- "1. Telemetry [HTTPS/TLS 1.3]" --> APIG
-    APIG -- "2. Check Key" --> SSM
-    APIG -- "3. Auth Req" --> AUTH
-    APIG -- "4. Push to Buffer" --> SQS
-    SQS -- "5. Batch Trigger" --> L-INGEST
-    L-INGEST -- "6. State Write" --> DDB
-    DDB -- "7. Stream Event" --> STREAM
-    STREAM -- "8. Trigger" --> L-NOTIFY
-    L-NOTIFY -- "9. Graph Mutation" --> AS
-    AS -- "10. Real-time Pub" --> ADMIN
+    TS -- "1. Telemetry [HTTPS/TLS 1.3]" --> WAF
+    WAF -- "2. Validated Ingress" --> APIG
+    APIG -- "3. Check Key" --> SSM
+    APIG -- "4. Auth Req" --> AUTH
+    APIG -- "5. Push to Buffer" --> SQS
+    SQS -- "6. Batch Trigger" --> L-INGEST
+    L-INGEST -- "7. State Write" --> DDB
+    DDB -- "8. Stream Event" --> STREAM
+    STREAM -- "9. Trigger" --> L-NOTIFY
+    L-NOTIFY -- "10. Graph Mutation" --> AS
+    AS -- "11. Real-time Pub" --> ADMIN
 
     %% Security & Management Links
-    WAF --- CF
+    ADMIN -- "Auth & UI Request" --> WAF
+    WAF -- "Filtered Assets" --> CF
     CF --- OAC
     COG -- "Admin JWT Issuance" --> ADMIN
     L-INGEST -. "Metric Push" .-> CW

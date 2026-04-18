@@ -93,6 +93,7 @@ module "api_gateway" {
   auth_lambda_invoke_arn   = module.lambda.auth_lambda_invoke_arn
   sqs_queue_arn            = module.sqs.queue_arn
   sqs_role_arn             = module.iam.api_gateway_sqs_role_arn
+  web_acl_arn              = module.waf.regional_web_acl_arn
 }
 
 module "monitoring" {
