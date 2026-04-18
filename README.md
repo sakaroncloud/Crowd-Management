@@ -74,11 +74,30 @@ flowchart TB
 
 ## 💰 Operational Economics
 
-CrowdSync is engineered for high-density scalability with a predictable serverless cost model. 
+CrowdSync is engineered for high-density scalability with a predictable serverless cost model optimized for the **AWS London (eu-west-2)** region.
 
-- **Regional Target**: London (`eu-west-2`)
-- **Cost Efficiency**: Automated batching via SQS and Pay-Per-Request storage modes.
-- **Detailed Projection**: [Full 10,000 attendee event cost breakdown](file:///Volumes/Works/Cloud/terraform/cloud/COST_ESTIMATE.md).
+### 📊 High-Density Event Baseline
+- **Scale**: 10,000 Concurrent Devices
+- **Frequency**: 1 Pulse Every 10 Seconds
+- **Duration**: 4 Hours
+- **Total Load**: **14.4 Million Ingestion Events**
+
+### 💸 Projected Cost Breakdown
+
+| Service | Component | Projected Cost (Event) |
+| :--- | :--- | :--- |
+| **API Gateway** | HTTP API Ingestion | **$18.58** |
+| **SQS** | Standard Queue Buffer | **$11.52** |
+| **Lambda** | Logic Engines | **$1.79** |
+| **DynamoDB** | On-Demand Storage | **$18.13** |
+| **AppSync** | Real-time Updates | **$1.15** |
+| **WAF** | Edge Security | **$18.64** |
+| **Other** | CloudFront, Monitoring | **$4.20** |
+| **TOTAL** | | **$74.01** |
+
+> [!TIP]
+> **Cost per 1,000 Attendees**: ~$7.40 per 4-hour window.
+> **Optimization**: Automated SQS batching reduces Lambda invocation costs by 90%.
 
 ---
 
