@@ -27,7 +27,7 @@ flowchart TB
     subgraph "🌐 [GLOBAL] Edge & Identity"
         direction TB
         subgraph "🔒 Global Security"
-            WAF["🛡️ AWS WAF<br/>(Edge Protection)"]
+            WAF-G["🛡️ AWS WAF Global<br/>(Edge Protection)"]
             COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
         end
         CF["☁️ CloudFront<br/>(Global Content Delivery)"]
@@ -38,51 +38,60 @@ flowchart TB
     subgraph "🌍 [REGION] London (eu-west-2)"
         direction TB
         
-        %% NO VPC demarcated by lack of VPC box, but logically grouped
-        subgraph "🚀 Data Ingestion Plane"
+        subgraph "🛡️ Regional Security"
+            WAF-R["🛡️ AWS WAF Regional<br/>(API L7 Shield)"]
+            SSM["📦 SSM SecureString<br/>(x-api-token store)"]
+        end
+
+        subgraph "🚀 Ingestion Plane"
             APIG["🌐 API Gateway v2<br/>(HTTP Ingress)"]
-            AUTH["⚡ Lambda Authorizer<br/>(JWT validation)"]
-            SSM["📦 SSM SecureString<br/>(X-API-Token)"]
+            L-AUTH["⚡ Lambda [Auth]<br/>(Token Validator)"]
             SQS["📥 SQS Ingest Buffer<br/>(Backpressure)"]
         end
 
-        subgraph "⚡ Serverless Core (No VPC required)"
-            L-INGEST["⚡ Lambda Ingest<br/>(Batch Logic)"]
+        subgraph "⚡ Core Processing & Storage"
+            L-INGEST["⚡ Lambda [Ingest]<br/>(Batch Processor)"]
             DDB[("📊 DynamoDB Clusters<br/>(Zones & Metadata)")]
-            STREAM["🌊 DynamoDB Streams<br/>(CDC)"]
-            L-NOTIFY["⚡ Lambda Notifier<br/>(Real-time Push)"]
+            STREAM["🌊 DynamoDB Streams<br/>(CDC Feed)"]
         end
 
-        subgraph "🕸️ Unified GraphQL layer"
-            AS["🕸️ AWS AppSync<br/>(GraphQL Subscriptions)"]
+        subgraph "🕸️ Distribution & Query Layer"
+            AS["🕸️ AWS AppSync<br/>(GraphQL Bridge)"]
+            L-NOTIFY["⚡ Lambda [Notifier]<br/>(Push Orchestrator)"]
+            L-READ["⚡ Lambda [Read]<br/>(Query Handler)"]
         end
         
         subgraph "📈 Monitoring & Observability"
             CW["📊 CloudWatch<br/>(Metrics & Alarms)"]
-            SNS["📢 SNS Topic<br/>(Security Alerts)"]
+            SNS["📢 SNS Topic<br/>(Admin Alerting)"]
         end
     end
 
     %% Data Flow (Zero to End)
-    TS -- "1. Telemetry [HTTPS/TLS 1.3]" --> WAF
-    WAF -- "2. Validated Ingress" --> APIG
-    APIG -- "3. Check Key" --> SSM
-    APIG -- "4. Auth Req" --> AUTH
-    APIG -- "5. Push to Buffer" --> SQS
-    SQS -- "6. Batch Trigger" --> L-INGEST
-    L-INGEST -- "7. State Write" --> DDB
-    DDB -- "8. Stream Event" --> STREAM
-    STREAM -- "9. Trigger" --> L-NOTIFY
-    L-NOTIFY -- "10. Graph Mutation" --> AS
-    AS -- "11. Real-time Pub" --> ADMIN
+    TS -- "1. Telemetry [HTTPS]" --> WAF-R
+    WAF-R -- "2. Validated" --> APIG
+    APIG <--> L-AUTH
+    L-AUTH -. "3. Fetch Key" .-> SSM
+    APIG -- "4. Buffering" --> SQS
+    SQS -- "5. Batch Invoke" --> L-INGEST
+    L-INGEST -- "6. Write State" --> DDB
+    DDB -- "7. Stream CDC" --> STREAM
+    STREAM -- "8. Trigger" --> L-NOTIFY
+    L-NOTIFY -- "9. Mutate Data" --> AS
+    AS -- "10. Real-time Pub" --> ADMIN
+
+    %% AppSync Query Path
+    ADMIN -- "11. Query Path" --> AS
+    AS -- "12. Invoke" --> L-READ
+    L-READ -- "13. Read Data" --> DDB
 
     %% Security & Management Links
-    ADMIN -- "Auth & UI Request" --> WAF
-    WAF -- "Filtered Assets" --> CF
+    ADMIN -- "UI/Auth Request" --> WAF-G
+    WAF-G -- "Filtered" --> CF
     CF --- OAC
     COG -- "Admin JWT Issuance" --> ADMIN
     L-INGEST -. "Metric Push" .-> CW
-    CW -- "Notify" --> SNS
+    CW -- "Alert" --> SNS
 
     %% Visual Styling
     classDef edge fill:#f8fafc,stroke:#334155,stroke-width:2px,stroke-dasharray: 5 5;
@@ -92,10 +101,10 @@ flowchart TB
     classDef security fill:#fff7ed,stroke:#ea580c,stroke-width:2px;
     
     class TS,ADMIN edge;
-    class WAF,COG,AUTH,SSM,OAC security;
+    class WAF-G,WAF-R,COG,L-AUTH,SSM,OAC security;
     class APIG,SQS,AS regional;
     class CF global;
-    class L-INGEST,L-NOTIFY,DDB,STREAM,CW,SNS compute;
+    class L-INGEST,L-READ,L-NOTIFY,DDB,STREAM,CW,SNS compute;
 ```
 
 ---
