@@ -98,6 +98,20 @@ Starts the telemetry heartbeats, pushing randomized (but logically consistent) c
 
 ---
 
+## 🛠️ Troubleshooting & Technical Gotchas
+
+### ✥ "Unexpected Attribute" Linting Errors
+If you see errors in your IDE or CLI regarding "Unexpected attributes" (e.g., `metadata_arn`), this is a common synchronization event when new module variables are added.
+*   **The Cause**: Terraform's internal module registry is out of sync with the new `variables.tf` definitions.
+*   **The Fix**: Run `/opt/homebrew/bin/terraform init`. This re-scans the module definitions and maps the new variables correctly. It is safe to run even while infrastructure is deployed.
+
+### ✥ Persistent Dashboard Cache
+If the dashboard appears to show old UI text after a deployment:
+*   **The Cause**: CloudFront edge caches or local browser caches.
+*   **The Fix**: Use `python3 scripts/manage.py status` to get the latest distribution ID and manually trigger an invalidation, or perform a **Hard Refresh** (Cmd+Shift+R) in your browser.
+
+---
+
 ## 📂 Project Structure
 
 ```text
