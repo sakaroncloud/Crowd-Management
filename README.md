@@ -72,6 +72,16 @@ flowchart TB
 
 ---
 
+## 💰 Operational Economics
+
+CrowdSync is engineered for high-density scalability with a predictable serverless cost model. 
+
+- **Regional Target**: London (`eu-west-2`)
+- **Cost Efficiency**: Automated batching via SQS and Pay-Per-Request storage modes.
+- **Detailed Projection**: [Full 10,000 attendee event cost breakdown](file:///Volumes/Works/Cloud/terraform/cloud/COST_ESTIMATE.md).
+
+---
+
 ## 🧠 Predictive Redirection Logic
 
 CrowdSync goes beyond monitoring. The dashboard features a **client-side intelligence engine** that proactively manages crowd flow:
