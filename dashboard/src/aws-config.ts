@@ -2,19 +2,19 @@
 const awsConfig = {
     Auth: {
         region: 'eu-west-2',
-        userPoolId: 'eu-west-2_EfnwVZHdu',
-        userPoolWebClientId: 'pt13id8gt5166833ha0aspuku',
+        userPoolId: 'eu-west-2_jVSoCkiFx',
+        userPoolWebClientId: '1pq4qqusm4rr0u9vn0b53t3a8g',
     },
     API: {
         endpoints: [
             {
                 name: 'CrowdMonitorAPI',
-                endpoint: 'https://1b3kmh4ht2.execute-api.eu-west-2.amazonaws.com',
+                endpoint: 'https://xxgad8h2n9.execute-api.eu-west-2.amazonaws.com',
                 region: 'eu-west-2',
             }
         ]
     },
-    aws_appsync_graphqlEndpoint: 'https://kkuubbwo7rhdlaa3nwidgsq4rq.appsync-api.eu-west-2.amazonaws.com/graphql',
+    aws_appsync_graphqlEndpoint: 'https://fijvczg5fvhrtlxqimguikto4q.appsync-api.eu-west-2.amazonaws.com/graphql',
     aws_appsync_region: 'eu-west-2',
     aws_appsync_authenticationType: 'AMAZON_COGNITO_USER_POOLS',
 }
