@@ -110,11 +110,16 @@ module "monitoring" {
 }
 
 # Wait, check monitoring dimensions again. SQS alarms usually use QueueName.
-# I will use queue_name for both.
+module "waf" {
+  source       = "./modules/waf"
+  project_name = var.project_name
+  environment  = var.environment
+}
 
 module "frontend" {
   source       = "./modules/frontend"
   project_name = var.project_name
   environment  = var.environment
   ui_dist_path = "${path.root}/dashboard/dist"
+  web_acl_id   = module.waf.web_acl_arn
 }

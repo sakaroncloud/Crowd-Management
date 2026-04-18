@@ -55,6 +55,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
   comment             = "${var.project_name}-frontend-${var.environment}"
   price_class         = "PriceClass_100" # US + Europe only — cheapest
+  web_acl_id          = var.web_acl_id
 
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name

@@ -13,48 +13,83 @@
 
 ## 🌐 Cloud Infrastructure Topology
 
-CrowdSync is deployed across a multi-layered AWS footprint, utilizing the **Global Edge Network** for low-latency asset delivery and a **Regional Serverless Core** for high-integrity data processing.
+CrowdSync is built on a high-availability, secure-by-default serverless architecture. The diagram below visualizes the end-to-end telemetry flow, from edge ingestion to real-time dashboard distribution.
 
 ```mermaid
 flowchart TB
-    subgraph "🌐 AWS Global Edge Network"
-        CF["☁️ CloudFront Distribution<br/>(Global Content Delivery)"]
-        S3F["📦 S3 Frontend Bucket<br/>(Static Assets)"]
+    %% External Entities
+    subgraph "📡 External Ecosystem"
+        TS["📟 Telemetry Source<br/>(Sensors / Simulators)"]
+        ADMIN["💻 Venue Staff Dashboard<br/>(End-User Client)"]
+    end
+
+    %% Security & Edge Layer
+    subgraph "🛡️ Security & Edge Layer (Global)"
+        direction TB
+        WAF["🛡️ AWS WAF<br/>(L7 Protection)"]
+        CF["☁️ CloudFront<br/>(Global Content Delivery)"]
+        OAC["🔑 Origin Access Control<br/>(S3 Security OAC)"]
         COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
     end
 
-    subgraph "🌍 AWS Region: eu-west-2 (London)"
+    %% Ingestion Ingress
+    subgraph "🚀 Data Ingestion Plane (London)"
         direction TB
-        subgraph "🚀 Data Orchestration Layer"
-            APIG["🌐 API Gateway v2<br/>(REST Ingestion)"]
-            AS["🕸️ AWS AppSync<br/>(Unified GraphQL Bus)"]
-        end
-
-        subgraph "⚡ Compute & Storage Layer"
-            WL["⚡ Lambda Exec Cluster<br/>(Logic Engine)"]
-            DDB[("📊 DynamoDB Clusters<br/>(Zone & Metadata)")]
-            DDB-S["🌊 DynamoDB Streams<br/>(Event Feed)"]
-        end
+        APIG["🌐 API Gateway v2<br/>(HTTP Ingress)"]
+        AUTH["⚡ Lambda Authorizer<br/>(JWT/Token Validation)"]
+        SSM["📦 SSM SecureString<br/>(X-API-Token Store)"]
+        SQS["📥 SQS Ingest Buffer<br/>(Backpressure Control)"]
     end
 
-    %% Connectivity
-    CF <--> S3F
-    CF --- COG
-    APIG ==> WL
-    WL -.-> DDB
-    DDB ==> DDB-S
-    DDB-S ==> WL
-    WL ==> AS
-    AS -.-> CF
+    %% Storage & Logic
+    subgraph "⚡ Serverless Core Layer"
+        direction TB
+        L-INGEST["⚡ Lambda Ingest<br/>(Batch Processor)"]
+        DDB[("📊 DynamoDB Zones<br/>(State Cluster)")]
+        STREAM["🌊 DynamoDB Streams<br/>(CDC Event Bus)"]
+        L-NOTIFY["⚡ Lambda Notifier<br/>(Push Orchestrator)"]
+    end
 
-    %% Styles
+    %% Unified GraphQL
+    subgraph "🕸️ Real-time Distribution"
+        AS["🕸️ AWS AppSync<br/>(GraphQL Subscriptions)"]
+    end
+
+    %% Monitoring
+    subgraph "📈 Observability Plane"
+        CW["📊 CloudWatch<br/>(Metrics & Alarms)"]
+        SNS["📢 SNS Topic<br/>(Admin Alerting)"]
+    end
+
+    %% Telemetry Path (Zero to End)
+    TS -- "1. Telemetry [HTTPS/TLS 1.3]" --> APIG
+    APIG -- "2. Auth Check" --> AUTH
+    AUTH -. "3. Fetch Key" .-> SSM
+    APIG -- "4. Queue Job" --> SQS
+    SQS -- "5. Batch Fetch" --> L-INGEST
+    L-INGEST -- "6. State Update" --> DDB
+    DDB -- "7. Stream CDC" --> STREAM
+    STREAM -- "8. Trigger" --> L-NOTIFY
+    L-NOTIFY -- "9. Mutate/Push" --> AS
+    AS -- "10. Real-time Pub/Sub" --> ADMIN
+
+    %% Security & Admin Connections
+    WAF --- CF
+    CF --- OAC
+    COG -- "JWT Issuance" --> ADMIN
+    L-INGEST -. "Metrics" .-> CW
+    CW -- "Alarm Status" --> SNS
+
+    %% Styling
     classDef edge fill:#f8fafc,stroke:#334155,stroke-width:2px,stroke-dasharray: 5 5;
     classDef regional fill:#eff6ff,stroke:#2563eb,stroke-width:2px;
     classDef compute fill:#fff1f2,stroke:#e11d48,stroke-width:2px;
+    classDef security fill:#fff7ed,stroke:#ea580c,stroke-width:2px;
     
-    class CF,S3F,COG edge;
-    class APIG,AS regional;
-    class WL,DDB,DDB-S compute;
+    class TS,ADMIN edge;
+    class WAF,CF,OAC,COG,AUTH,SSM security;
+    class APIG,SQS,AS regional;
+    class L-INGEST,L-NOTIFY,DDB,STREAM,CW,SNS compute;
 ```
 
 ---
