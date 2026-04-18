@@ -62,3 +62,13 @@ variable "user_pool_client_id" {
   description = "Cognito User Pool Client ID"
   type        = string
 }
+
+variable "sqs_queue_arn" {
+  description = "ARN of the SQS queue for telemetry ingestion"
+  type        = string
+}
+
+variable "sqs_role_arn" {
+  description = "ARN of the IAM role for API Gateway SQS integration"
+  type        = string
+}

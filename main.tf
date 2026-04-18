@@ -1,5 +1,12 @@
 # Root Main Configuration
 
+module "sqs" {
+  source       = "./modules/sqs"
+  project_name = var.project_name
+  environment  = var.environment
+  tags         = var.tags
+}
+
 module "iam" {
   source       = "./modules/iam"
   project_name = var.project_name
@@ -7,6 +14,7 @@ module "iam" {
   metadata_arn = module.dynamodb.metadata_table_arn
   s3_arn       = module.s3.bucket_arn
   sns_arn      = module.sns.topic_arn
+  sqs_arn      = module.sqs.queue_arn
 }
 
 module "dynamodb" {
@@ -64,6 +72,7 @@ module "lambda" {
   token_param_name     = module.ssm.parameter_name
   appsync_url          = module.appsync.graphql_api_url
   dynamodb_stream_arn  = module.dynamodb.stream_arn
+  sqs_queue_arn        = module.sqs.queue_arn
 }
 
 
@@ -82,18 +91,26 @@ module "api_gateway" {
   user_pool_client_id      = module.cognito.user_pool_client_id
   auth_lambda_arn          = module.lambda.auth_lambda_arn
   auth_lambda_invoke_arn   = module.lambda.auth_lambda_invoke_arn
+  sqs_queue_arn            = module.sqs.queue_arn
+  sqs_role_arn             = module.iam.api_gateway_sqs_role_arn
 }
 
 module "monitoring" {
-  source             = "./modules/monitoring"
-  project_name       = var.project_name
-  environment        = var.environment
-  ingest_lambda_name = module.lambda.ingest_lambda_name
-  read_lambda_name   = module.lambda.read_lambda_name
-  api_id             = module.api_gateway.api_id
-  sns_topic_arn      = module.sns.topic_arn
-  tags               = var.tags
+  source              = "./modules/monitoring"
+  project_name        = var.project_name
+  environment         = var.environment
+  ingest_lambda_name  = module.lambda.ingest_lambda_name
+  read_lambda_name    = module.lambda.read_lambda_name
+  api_id              = module.api_gateway.api_id
+  sns_topic_arn       = module.sns.topic_arn
+  queue_name          = module.sqs.queue_name
+  dlq_name            = module.sqs.dlq_name
+  dynamodb_table_name = module.dynamodb.table_name
+  tags                = var.tags
 }
+
+# Wait, check monitoring dimensions again. SQS alarms usually use QueueName.
+# I will use queue_name for both.
 
 module "frontend" {
   source       = "./modules/frontend"
@@ -101,5 +118,3 @@ module "frontend" {
   environment  = var.environment
   ui_dist_path = "${path.root}/dashboard/dist"
 }
-
-

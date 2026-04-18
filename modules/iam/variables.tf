@@ -22,4 +22,7 @@ variable "metadata_arn" {
   description = "ARN of the DynamoDB metadata table"
   type        = string
 }
-
+variable "sqs_arn" {
+  description = "ARN of the SQS teleport queue"
+  type        = string
+}

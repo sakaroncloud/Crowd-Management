@@ -145,6 +145,63 @@ resource "aws_iam_role_policy" "lambda_appsync" {
   })
 }
 
+# SQS Policy for Lambda (Consumer)
+resource "aws_iam_role_policy" "lambda_sqs" {
+  name = "${var.project_name}-lambda-sqs"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Effect   = "Allow"
+        Resource = var.sqs_arn
+      },
+    ]
+  })
+}
+
+# API Gateway Role for SQS Integration
+resource "aws_iam_role" "api_gateway_sqs" {
+  name = "${var.project_name}-apigateway-sqs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "api_gateway_sqs" {
+  name = "${var.project_name}-apigateway-sqs-policy"
+  role = aws_iam_role.api_gateway_sqs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Effect   = "Allow"
+        Resource = var.sqs_arn
+      },
+    ]
+  })
+}
+
 # AppSync Logging Role
 resource "aws_iam_role" "appsync_logs" {
   name = "${var.project_name}-appsync-logs-role"

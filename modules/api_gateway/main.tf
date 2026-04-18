@@ -39,12 +39,22 @@ resource "aws_cloudwatch_log_group" "api_logs" {
   retention_in_days = 7
 }
 
-# Integrations (ONLY INGEST)
+# Integrations (SQS for Backpressure)
 resource "aws_apigatewayv2_integration" "ingest" {
-  api_id                 = aws_apigatewayv2_api.http.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = var.ingest_lambda_invoke_arn
-  payload_format_version = "2.0"
+  api_id           = aws_apigatewayv2_api.http.id
+  integration_type = "AWS_PROXY"
+  connection_type  = "INTERNET"
+
+  # SQS Service Integration
+  integration_subtype = "SQS-SendMessage"
+  credentials_arn     = var.sqs_role_arn
+
+  request_parameters = {
+    "QueueUrl"    = var.sqs_queue_arn
+    "MessageBody" = "$request.body"
+  }
+
+  payload_format_version = "1.0" # Required for subtypes
 }
 
 # Authorizers (ONLY TOKEN)

@@ -107,3 +107,9 @@ resource "aws_lambda_event_source_mapping" "dynamodb_stream" {
   starting_position = "LATEST"
 }
 
+resource "aws_lambda_event_source_mapping" "sqs_ingest" {
+  event_source_arn = var.sqs_queue_arn
+  function_name    = aws_lambda_function.ingest.arn
+  batch_size       = 10
+}
+

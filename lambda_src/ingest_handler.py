@@ -25,102 +25,92 @@ def get_zone_metadata(zone_id):
         print(f"Error fetching metadata for {zone_id}: {e}")
         return {}
 
-def lambda_handler(event, context):
-    print(f"Received event: {json.dumps(event)}")
+def process_record(record_body):
+    """Logic to process a single telemetry record."""
+    body = json.loads(record_body)
+    zone_id = body.get('zoneId')
+    crowd_count = body.get('crowdCount')
     
-    try:
-        # Parse input
-        body = json.loads(event.get('body', '{}'))
-        zone_id = body.get('zoneId')
-        crowd_count = body.get('crowdCount')
+    if not zone_id or crowd_count is None:
+        print(f"Invalid record data: {record_body}")
+        return
+    
+    # 0. Fetch Metadata for dynamic thresholds
+    metadata = get_zone_metadata(zone_id)
+    capacity = int(metadata.get('capacity', 100))
+    
+    # Threshold logic (Percentage based)
+    occupancy_rate = (crowd_count / capacity) * 100
+    
+    status = "Normal"
+    action = "No Action"
+    
+    if occupancy_rate > 90:
+        status = "Critical"
+        action = "Restrict Entry / Redirect Flow"
+    elif occupancy_rate > 70:
+        status = "Busy"
+        action = "Monitor closely"
         
-        if not zone_id or crowd_count is None:
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'Missing zoneId or crowdCount'})
-            }
-        
-        # 0. Fetch Metadata for dynamic thresholds
-        metadata = get_zone_metadata(zone_id)
-        capacity = int(metadata.get('capacity', 100)) # Default to 100 if not found
-        
-        # Threshold logic (Percentage based)
-        occupancy_rate = (crowd_count / capacity) * 100
-        
-        status = "Normal"
-        action = "No Action"
-        
-        if occupancy_rate > 80:
-            status = "Critical"
-            action = "Restrict Entry / Redirect Flow"
-        elif occupancy_rate > 50:
-            status = "Busy"
-            action = "Monitor closely"
-            
-        timestamp = datetime.datetime.utcnow().isoformat() + 'Z'
-        
-        # 1. Update DynamoDB
-        table = dynamodb.Table(TABLE_NAME)
-        table.put_item(
-            Item={
-                'zoneId': zone_id,
-                'crowdCount': crowd_count,
-                'capacity': capacity,
-                'status': status,
-                'action': action,
-                'lastUpdated': timestamp
-            }
-        )
-        
-        # 2. Log to S3
-        event_id = str(uuid.uuid4())
-        log_payload = {
-            'eventId': event_id,
+    timestamp = datetime.datetime.utcnow().isoformat() + 'Z'
+    
+    # 1. Update DynamoDB
+    table = dynamodb.Table(TABLE_NAME)
+    table.put_item(
+        Item={
             'zoneId': zone_id,
             'crowdCount': crowd_count,
+            'capacity': capacity,
             'status': status,
-            'timestamp': timestamp
+            'action': action,
+            'lastUpdated': timestamp
         }
-        
-        date_path = datetime.datetime.utcnow().strftime('%Y/%m/%d')
-        s3_key = f"logs/{date_path}/{event_id}.json"
-        
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=s3_key,
-            Body=json.dumps(log_payload),
-            ContentType='application/json'
+    )
+    
+    # 2. Log to S3
+    event_id = str(uuid.uuid4())
+    log_payload = {
+        'eventId': event_id,
+        'zoneId': zone_id,
+        'crowdCount': crowd_count,
+        'status': status,
+        'timestamp': timestamp
+    }
+    
+    date_path = datetime.datetime.utcnow().strftime('%Y/%m/%d')
+    s3_key = f"logs/{date_path}/{event_id}.json"
+    
+    s3.put_object(
+        Bucket=BUCKET_NAME,
+        Key=s3_key,
+        Body=json.dumps(log_payload),
+        ContentType='application/json'
+    )
+    
+    # 3. SNS Alert if Critical
+    if status == "Critical":
+        message = f"CRITICAL CONGESTION ALERT: Zone {zone_id} has reached {crowd_count} people. Action required: {action}."
+        sns.publish(
+            TopicArn=TOPIC_ARN,
+            Message=message,
+            Subject=f"Crowd Alert: {zone_id} CRITICAL"
         )
-        
-        # 3. SNS Alert if Critical
-        if status == "Critical":
-            message = f"CRITICAL CONGESTION ALERT: Zone {zone_id} has reached {crowd_count} people. Action required: {action}."
-            sns.publish(
-                TopicArn=TOPIC_ARN,
-                Message=message,
-                Subject=f"Crowd Alert: {zone_id} CRITICAL"
-            )
-            
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps({
-                'zoneId': zone_id,
-                'status': status,
-                'action': action,
-                'timestamp': timestamp
-            })
-        }
-        
-    except Exception as e:
-        print(f"Error processing event: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps({'error': f'Internal server error: {str(e)}'})
-        }
+    
+    print(f"Processed record for {zone_id}: {status}")
 
+def lambda_handler(event, context):
+    """SQS Triggered Handler."""
+    print(f"Received SQS event with {len(event.get('Records', []))} records.")
+    
+    for record in event.get('Records', []):
+        try:
+            process_record(record['body'])
+        except Exception as e:
+            print(f"Error processing record {record['messageId']}: {str(e)}")
+            # Re-rising error would cause the whole batch to retry if not using partial failures
+            # For now, we log and continue, but in high-integrity systems we might use partial results
+            raise e 
+    
+    return {
+        'message': 'Successfully processed batch'
+    }

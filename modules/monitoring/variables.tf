@@ -28,6 +28,21 @@ variable "sns_topic_arn" {
   type        = string
 }
 
+variable "queue_name" {
+  description = "The name of the SQS teleport queue"
+  type        = string
+}
+
+variable "dlq_name" {
+  description = "The name of the Dead Letter Queue"
+  type        = string
+}
+
+variable "dynamodb_table_name" {
+  description = "The name of the DynamoDB zones table"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)
