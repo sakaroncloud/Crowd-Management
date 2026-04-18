@@ -9,31 +9,52 @@
 
 ---
 
-## 🏛️ System Architecture
+---
 
-CrowdSync utilizes a **Pure Serverless / Event-Driven** architecture designed for sub-second latency and proactive management. It has evolved from a polling-based prototype to a unified GraphQL real-time bus.
+## 🌐 Cloud Infrastructure Topology
 
-### 🔄 The Data Lifecycle (Link to Pixel)
+CrowdSync is deployed across a multi-layered AWS footprint, utilizing the **Global Edge Network** for low-latency asset delivery and a **Regional Serverless Core** for high-integrity data processing.
 
 ```mermaid
-graph TD
-    subgraph "Ingestion Engine"
-        A["💻 Telemetry Simulator<br/>(Python)"] -- "HTTPS POST<br/>(JWT/Token)" --> B["🌐 API Gateway v2"]
-        B --> C["⚡ Ingest Lambda<br/>(write_handler)"]
-        C -- "Store State" --> D[("📊 DynamoDB<br/>(Zones Table)")]
+flowchart TB
+    subgraph "🌐 AWS Global Edge Network"
+        CF["☁️ CloudFront Distribution<br/>(Global Content Delivery)"]
+        S3F["📦 S3 Frontend Bucket<br/>(Static Assets)"]
+        COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
     end
 
-    subgraph "Real-time Pipeline"
-        D -- "CDC Event" --> E["🌊 DynamoDB Stream"]
-        E --> F["⚡ Notifier Lambda<br/>(realtime_notifier)"]
-        F -- "Mutation" --> G["🕸️ AWS AppSync<br/>(GraphQL Bus)"]
+    subgraph "🌍 AWS Region: eu-west-2 (London)"
+        direction TB
+        subgraph "🚀 Data Orchestration Layer"
+            APIG["🌐 API Gateway v2<br/>(REST Ingestion)"]
+            AS["🕸️ AWS AppSync<br/>(Unified GraphQL Bus)"]
+        end
+
+        subgraph "⚡ Compute & Storage Layer"
+            WL["⚡ Lambda Exec Cluster<br/>(Logic Engine)"]
+            DDB[("📊 DynamoDB Clusters<br/>(Zone & Metadata)")]
+            DDB-S["🌊 DynamoDB Streams<br/>(Event Feed)"]
+        end
     end
 
-    subgraph "Operations Dashboard"
-        G -- "WebSocket Push" --> H["🖥️ React Dashboard<br/>(App.tsx)"]
-        H -- "Auto-Calculate" --> I["🧠 Predictive Recommender<br/>(Local Engine)"]
-        I -- "Visual Cue" --> J["🚨 Redirection Strategy<br/>(Alternative: ZONE-X)"]
-    end
+    %% Connectivity
+    CF <--> S3F
+    CF --- COG
+    APIG ==> WL
+    WL -.-> DDB
+    DDB ==> DDB-S
+    DDB-S ==> WL
+    WL ==> AS
+    AS -.-> CF
+
+    %% Styles
+    classDef edge fill:#f8fafc,stroke:#334155,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef regional fill:#eff6ff,stroke:#2563eb,stroke-width:2px;
+    classDef compute fill:#fff1f2,stroke:#e11d48,stroke-width:2px;
+    
+    class CF,S3F,COG edge;
+    class APIG,AS regional;
+    class WL,DDB,DDB-S compute;
 ```
 
 ---
