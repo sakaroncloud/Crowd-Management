@@ -19,76 +19,80 @@ CrowdSync is built on a high-availability, secure-by-default serverless architec
 flowchart TB
     %% External Entities
     subgraph "📡 External Ecosystem"
-        TS["📟 Telemetry Source<br/>(Sensors / Simulators)"]
-        ADMIN["💻 Venue Staff Dashboard<br/>(End-User Client)"]
+        TS["📟 Telemetry Source<br/>(IoT Sensors / Simulators)"]
+        ADMIN["💻 Dashboard Client<br/>(Venue Admin Devices)"]
     end
 
-    %% Security & Edge Layer
-    subgraph "🛡️ Security & Edge Layer (Global)"
+    %% Global Services
+    subgraph "🌐 [GLOBAL] Edge & Identity"
         direction TB
-        WAF["🛡️ AWS WAF<br/>(L7 Protection)"]
+        subgraph "🔒 Global Security"
+            WAF["🛡️ AWS WAF<br/>(Edge Protection)"]
+            COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
+        end
         CF["☁️ CloudFront<br/>(Global Content Delivery)"]
-        OAC["🔑 Origin Access Control<br/>(S3 Security OAC)"]
-        COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
+        OAC["🔑 Origin Access Control<br/>(S3 OAC Hardening)"]
     end
 
-    %% Ingestion Ingress
-    subgraph "🚀 Data Ingestion Plane (London)"
+    %% Regional Services
+    subgraph "🌍 [REGION] London (eu-west-2)"
         direction TB
-        APIG["🌐 API Gateway v2<br/>(HTTP Ingress)"]
-        AUTH["⚡ Lambda Authorizer<br/>(JWT/Token Validation)"]
-        SSM["📦 SSM SecureString<br/>(X-API-Token Store)"]
-        SQS["📥 SQS Ingest Buffer<br/>(Backpressure Control)"]
+        
+        %% NO VPC demarcated by lack of VPC box, but logically grouped
+        subgraph "🚀 Data Ingestion Plane"
+            APIG["🌐 API Gateway v2<br/>(HTTP Ingress)"]
+            AUTH["⚡ Lambda Authorizer<br/>(JWT validation)"]
+            SSM["📦 SSM SecureString<br/>(X-API-Token)"]
+            SQS["📥 SQS Ingest Buffer<br/>(Backpressure)"]
+        end
+
+        subgraph "⚡ Serverless Core (No VPC required)"
+            L-INGEST["⚡ Lambda Ingest<br/>(Batch Logic)"]
+            DDB[("📊 DynamoDB Clusters<br/>(Zones & Metadata)")]
+            STREAM["🌊 DynamoDB Streams<br/>(CDC)"]
+            L-NOTIFY["⚡ Lambda Notifier<br/>(Real-time Push)"]
+        end
+
+        subgraph "🕸️ Unified GraphQL layer"
+            AS["🕸️ AWS AppSync<br/>(GraphQL Subscriptions)"]
+        end
+        
+        subgraph "📈 Monitoring & Observability"
+            CW["📊 CloudWatch<br/>(Metrics & Alarms)"]
+            SNS["📢 SNS Topic<br/>(Security Alerts)"]
+        end
     end
 
-    %% Storage & Logic
-    subgraph "⚡ Serverless Core Layer"
-        direction TB
-        L-INGEST["⚡ Lambda Ingest<br/>(Batch Processor)"]
-        DDB[("📊 DynamoDB Zones<br/>(State Cluster)")]
-        STREAM["🌊 DynamoDB Streams<br/>(CDC Event Bus)"]
-        L-NOTIFY["⚡ Lambda Notifier<br/>(Push Orchestrator)"]
-    end
-
-    %% Unified GraphQL
-    subgraph "🕸️ Real-time Distribution"
-        AS["🕸️ AWS AppSync<br/>(GraphQL Subscriptions)"]
-    end
-
-    %% Monitoring
-    subgraph "📈 Observability Plane"
-        CW["📊 CloudWatch<br/>(Metrics & Alarms)"]
-        SNS["📢 SNS Topic<br/>(Admin Alerting)"]
-    end
-
-    %% Telemetry Path (Zero to End)
+    %% Data Flow (Zero to End)
     TS -- "1. Telemetry [HTTPS/TLS 1.3]" --> APIG
-    APIG -- "2. Auth Check" --> AUTH
-    AUTH -. "3. Fetch Key" .-> SSM
-    APIG -- "4. Queue Job" --> SQS
-    SQS -- "5. Batch Fetch" --> L-INGEST
-    L-INGEST -- "6. State Update" --> DDB
-    DDB -- "7. Stream CDC" --> STREAM
+    APIG -- "2. Check Key" --> SSM
+    APIG -- "3. Auth Req" --> AUTH
+    APIG -- "4. Push to Buffer" --> SQS
+    SQS -- "5. Batch Trigger" --> L-INGEST
+    L-INGEST -- "6. State Write" --> DDB
+    DDB -- "7. Stream Event" --> STREAM
     STREAM -- "8. Trigger" --> L-NOTIFY
-    L-NOTIFY -- "9. Mutate/Push" --> AS
-    AS -- "10. Real-time Pub/Sub" --> ADMIN
+    L-NOTIFY -- "9. Graph Mutation" --> AS
+    AS -- "10. Real-time Pub" --> ADMIN
 
-    %% Security & Admin Connections
+    %% Security & Management Links
     WAF --- CF
     CF --- OAC
-    COG -- "JWT Issuance" --> ADMIN
-    L-INGEST -. "Metrics" .-> CW
-    CW -- "Alarm Status" --> SNS
+    COG -- "Admin JWT Issuance" --> ADMIN
+    L-INGEST -. "Metric Push" .-> CW
+    CW -- "Notify" --> SNS
 
-    %% Styling
+    %% Visual Styling
     classDef edge fill:#f8fafc,stroke:#334155,stroke-width:2px,stroke-dasharray: 5 5;
     classDef regional fill:#eff6ff,stroke:#2563eb,stroke-width:2px;
+    classDef global fill:#f0fdf4,stroke:#16a34a,stroke-width:2px;
     classDef compute fill:#fff1f2,stroke:#e11d48,stroke-width:2px;
     classDef security fill:#fff7ed,stroke:#ea580c,stroke-width:2px;
     
     class TS,ADMIN edge;
-    class WAF,CF,OAC,COG,AUTH,SSM security;
+    class WAF,COG,AUTH,SSM,OAC security;
     class APIG,SQS,AS regional;
+    class CF global;
     class L-INGEST,L-NOTIFY,DDB,STREAM,CW,SNS compute;
 ```
 
