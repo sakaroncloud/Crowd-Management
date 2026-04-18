@@ -16,7 +16,7 @@
 CrowdSync is built on a high-availability, secure-by-default serverless architecture. The diagram below visualizes the end-to-end telemetry flow, from edge ingestion to real-time dashboard distribution.
 
 ```mermaid
-flowchart TB
+flowchart LR
     %% External Entities
     subgraph "📡 External Ecosystem"
         TS["📟 Telemetry Source<br/>(IoT Sensors / Simulators)"]
