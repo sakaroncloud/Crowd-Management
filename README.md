@@ -15,110 +15,110 @@
 
 CrowdSync is built on a high-availability, secure-by-default serverless architecture. The diagram below visualizes the end-to-end telemetry flow, from edge ingestion to real-time dashboard distribution.
 
-```mermaid
-flowchart LR
-    %% External Entities
-    subgraph "📡 External Ecosystem"
-        TS["📟 Telemetry Source<br/>(IoT Sensors / Simulators)"]
-        ADMIN["💻 Dashboard Client<br/>(Venue Admin Devices)"]
-    end
-
-    %% Global Services
-    subgraph "🌐 [GLOBAL] Edge & Identity"
-        direction TB
-        subgraph "🔒 Global Security"
-            WAF-G["🛡️ AWS WAF Global<br/>(Edge Protection)"]
-            COG["🔐 Cognito User Pool<br/>(Identity Plane)"]
-        end
-        CF["☁️ CloudFront<br/>(Global Content Delivery)"]
-        OAC["🔑 Origin Access Control<br/>(S3 OAC Hardening)"]
-    end
-
-    %% Regional Services
-    subgraph "🌍 [REGION] London (eu-west-2)"
-        direction TB
-        
-        subgraph "🛡️ Regional Security"
-            WAF-R["🛡️ AWS WAF Regional<br/>(API L7 Shield)"]
-            SSM["📦 SSM SecureString<br/>(x-api-token store)"]
-        end
-
-        subgraph "🚀 Ingestion Plane"
-            APIG["🌐 API Gateway v2<br/>(HTTP Ingress)"]
-            L-AUTH["⚡ Lambda [Auth]<br/>(Token Validator)"]
-            SQS["📥 SQS Ingest Buffer<br/>(Backpressure)"]
-        end
-
-        subgraph "⚡ Core Processing & Storage"
-            L-INGEST["⚡ Lambda [Ingest]<br/>(Batch Processor)"]
-            DDB[("📊 DynamoDB Clusters<br/>(Zones & Metadata)")]
-            STREAM["🌊 DynamoDB Streams<br/>(CDC Feed)"]
-        end
-
-        subgraph "🕸️ Distribution & Query Layer"
-            AS["🕸️ AWS AppSync<br/>(GraphQL Bridge)"]
-            L-NOTIFY["⚡ Lambda [Notifier]<br/>(Push Orchestrator)"]
-            L-READ["⚡ Lambda [Read]<br/>(Query Handler)"]
-        end
-        
-        subgraph "📈 Monitoring & Observability"
-            CW["📊 CloudWatch<br/>(Metrics & Alarms)"]
-            SNS["📢 SNS Topic<br/>(Admin Alerting)"]
-        end
-    end
-
-    %% Data Flow (Zero to End)
-    TS -- "1. Telemetry [HTTPS]" --> WAF-R
-    WAF-R -- "2. Validated" --> APIG
-    APIG <--> L-AUTH
-    L-AUTH -. "3. Fetch Key" .-> SSM
-    APIG -- "4. Buffering" --> SQS
-    SQS -- "5. Batch Invoke" --> L-INGEST
-    L-INGEST -- "6. Write State" --> DDB
-    DDB -- "7. Stream CDC" --> STREAM
-    STREAM -- "8. Trigger" --> L-NOTIFY
-    L-NOTIFY -- "9. Mutate Data" --> AS
-    AS -- "10. Real-time Pub" --> ADMIN
-
-    %% AppSync Query Path
-    ADMIN -- "11. Query Path" --> AS
-    AS -- "12. Invoke" --> L-READ
-    L-READ -- "13. Read Data" --> DDB
-
-    %% Security & Management Links
-    ADMIN -- "UI/Auth Request" --> WAF-G
-    WAF-G -- "Filtered" --> CF
-    CF --- OAC
-    COG -- "Admin JWT Issuance" --> ADMIN
-    L-INGEST -. "Metric Push" .-> CW
-    CW -- "Alert" --> SNS
-
-    %% Visual Styling
-    classDef edge fill:#f8fafc,stroke:#334155,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef regional fill:#eff6ff,stroke:#2563eb,stroke-width:2px;
-    classDef global fill:#f0fdf4,stroke:#16a34a,stroke-width:2px;
-    classDef compute fill:#fff1f2,stroke:#e11d48,stroke-width:2px;
-    classDef security fill:#fff7ed,stroke:#ea580c,stroke-width:2px;
-    
-    class TS,ADMIN edge;
-    class WAF-G,WAF-R,COG,L-AUTH,SSM,OAC security;
-    class APIG,SQS,AS regional;
-    class CF global;
-    class L-INGEST,L-READ,L-NOTIFY,DDB,STREAM,CW,SNS compute;
-```
+![CrowdSync AWS Architecture](./architecture_final.png)
 
 ---
 
-## 🛠️ Technology Stack Breakdown
+## 🏗️ Architectural Components Breakdown
 
-| Layer | Service | Rationale |
-| :--- | :--- | :--- |
-| **Ingestion** | **API Gateway + Lambda** | Provides a lightweight, high-throughput REST entry point specifically for simulation devices and hardware sensors. |
-| **Storage** | **DynamoDB** | NoSQL performance with **Change Data Capture (CDC)** capabilities via Streams for real-time propagation. |
-| **Real-time Bus** | **AWS AppSync** | Unified data interface. Replaces multiple REST endpoints with a single GraphQL schema and native WebSocket support. |
-| **Security** | **AWS Cognito** | Managed Identity Provider. Handles JWT issuance and secure authentication for administrative staff. |
-| **Delivery** | **CloudFront + S3** | Global edge distribution of the dashboard assets with Origin Access Control (OAC) for hardened bucket security. |
-| **IaC** | **Terraform** | 100% of the architecture is codified, ensuring reproducible environments across Dev, Staging, and Production. |
+To understand how CrowdSync achieves sub-350ms "Pulse-to-Pixel" latency securely, here is an explicit node-by-node trace of every AWS service mapped in the architecture:
+
+### 1. Global Edge & Identity (The Front Door)
+
+#### AWS WAF (Global)
+*   **Role**: The first line of defense blocking malicious bots, SQL injections, and DDoS attempts.
+*   **Receives From**: Dashboard Client (Browser) UI Requests.
+*   **Sends To**: Amazon CloudFront.
+
+#### Amazon CloudFront
+*   **Role**: A globally distributed CDN that caches the React Dashboard UI close to venue administrators, ensuring fast load times worldwide.
+*   **Receives From**: AWS WAF (Global).
+*   **Sends To**: Amazon S3 (Frontend Bucket).
+
+#### Amazon S3 (with OAC)
+*   **Role**: Stores the compiled frontend React assets. Origin Access Control (OAC) guarantees this bucket is 100% private and impenetrable from the raw internet.
+*   **Receives From**: Amazon CloudFront (exclusively via secure OAC signing).
+*   **Sends To**: Dashboard Client (serves UI files).
+
+#### Amazon Cognito (User Pool)
+*   **Role**: Handles administrator authentication and identity management, providing secure JWTs (JSON Web Tokens).
+*   **Receives From**: Dashboard Client (Login Request).
+*   **Sends To**: Dashboard Client (Returns JWT Token).
+
+### 2. Regional Security (The Ingestion Shield)
+
+#### AWS WAF (Regional)
+*   **Role**: A strict secondary firewall explicitly protecting our internal telemetry ingestion API from malicious payloads.
+*   **Receives From**: IoT Sensors / Telemetry Sources.
+*   **Sends To**: Amazon API Gateway v2.
+
+#### AWS Systems Manager (SSM) Parameter Store
+*   **Role**: Securely encrypts and stores the master `x-api-token`. Ensures no hardcoded secrets exist in our Lambdas.
+*   **Receives From**: Auth Lambda (Lookup Query).
+*   **Sends To**: Auth Lambda (Returns decrypted master token).
+
+### 3. Ingestion Plane (The Shock Absorber)
+
+#### Amazon API Gateway v2
+*   **Role**: A highly scalable HTTP API endpoint that receives concurrent HTTPS telemetry pulses.
+*   **Receives From**: AWS WAF (Regional).
+*   **Sends To**: Auth Lambda (for validation) and then to Amazon SQS (for buffering).
+
+#### Auth Lambda
+*   **Role**: A custom Lambda authorizer that executes a strict Bi-Directional Request/Response loop to halt incoming API Gateway traffic and authorize the `x-api-token`.
+*   **Receives From**: Amazon API Gateway.
+*   **Sends To**: SSM Parameter Store (Lookup), and then returns Allow/Deny policy back to API Gateway.
+
+#### Amazon SQS (Ingest Buffer)
+*   **Role**: The "Backpressure" queue. It absorbs traffic spikes and automatically packs up to 10 payloads into a single execution batch, drastically lowering compute costs.
+*   **Receives From**: Amazon API Gateway.
+*   **Sends To**: Ingest Lambda (Batch Trigger).
+
+### 4. Core Processing (The Brain)
+
+#### Ingest Lambda
+*   **Role**: Pulls large batched payloads off the SQS queue and natively bulk-writes them into the database simultaneously.
+*   **Receives From**: Amazon SQS.
+*   **Sends To**: Amazon DynamoDB ("Zones" Table).
+
+#### Amazon DynamoDB (Clusters)
+*   **Role**: Operates incredibly efficiently across two isolated tables (`PAY_PER_REQUEST` billing). The volatile "Zones" table stores live occupancy, while the "Metadata" table hosts static geofence rules.
+*   **Receives From**: Ingest Lambda (Write), Read Lambda (Query).
+*   **Sends To**: DynamoDB Streams (CDC Events).
+
+#### DynamoDB Streams
+*   **Role**: A Change Data Capture (CDC) engine exclusively monitoring the "Zones" table. It fires an event the exact millisecond an occupancy row changes.
+*   **Receives From**: Amazon DynamoDB (Internal table updates).
+*   **Sends To**: Notifier Lambda (Trigger).
+
+### 5. Distribution Layer (The Real-Time Bridge)
+
+#### Notifier Lambda
+*   **Role**: Formats the database change event from the Stream and fires an orchestration mutation directly to the GraphQL API.
+*   **Receives From**: DynamoDB Streams.
+*   **Sends To**: AWS AppSync.
+
+#### AWS AppSync (GraphQL)
+*   **Role**: Our real-time pub/sub bridge. Maintains an active WebSocket connection pushing live zone updates instantly to connected administrators.
+*   **Receives From**: Notifier Lambda (Mutations), Dashboard Client (Queries).
+*   **Sends To**: Dashboard Client (Real-time Pub), Read Lambda (Query Invocation).
+
+#### Read Lambda
+*   **Role**: Handles historic or ad-hoc data queries requested via AppSync when the admin dashboard boots up or refreshes.
+*   **Receives From**: AWS AppSync.
+*   **Sends To**: Amazon DynamoDB (Read Query).
+
+### 6. Monitoring & Observability (The Nervous System)
+
+#### Amazon CloudWatch
+*   **Role**: Constantly parses native metrics (API 5XXs, Lambda crashes, SQS Backlogs > 1000, DDB Throttling) and keeps a pulse on technical health.
+*   **Receives From**: API Gateway, Lambdas, SQS, DynamoDB (Metric Pushes).
+*   **Sends To**: Amazon SNS (Alert Trigger).
+
+#### Amazon SNS (Alerts Topic)
+*   **Role**: An escalation engine. If CloudWatch detects any stress or failure across the components above, it immediately pages or emails administrators.
+*   **Receives From**: Amazon CloudWatch.
+*   **Sends To**: Venue Administrators (Email/SMS).
 
 ---
 
