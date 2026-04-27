@@ -32,3 +32,7 @@ def lambda_handler(event, context):
         print("Authorization failed: Token mismatch")
         return { "isAuthorized": False }
 
+def generate_policy(principal_id, effect, resource):
+    """Simple response authorizer helper."""
+    return { "isAuthorized": effect == 'Allow' }
+

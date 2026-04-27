@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CrowdSync Global WAF for CloudFront (Must be deployed in us-east-1)
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: crowd-monitoring
+  Environment:
+    Type: String
+    Default: dev
+
+Resources:
+  GlobalWafAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${ProjectName}-global-waf-${Environment}"
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${ProjectName}-global-waf"
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: "AWSManagedRulesCommonRuleSet"
+            SampledRequestsEnabled: true
+        - Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 2
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: "AWSManagedRulesAmazonIpReputationList"
+            SampledRequestsEnabled: true
+
+Outputs:
+  WebAclArn:
+    Description: ARN of the Global WAF
+    Value: !GetAtt GlobalWafAcl.Arn

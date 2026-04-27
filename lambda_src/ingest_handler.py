@@ -26,7 +26,7 @@ def get_zone_metadata(zone_id):
         return {}
 
 def process_record(record_body):
-    """Logic to process a single telemetry record."""
+    """Logic to process a single telemetry record with Analytics logging."""
     body = json.loads(record_body)
     zone_id = body.get('zoneId')
     crowd_count = body.get('crowdCount')
@@ -35,13 +35,12 @@ def process_record(record_body):
         print(f"Invalid record data: {record_body}")
         return
     
-    # 0. Fetch Metadata for dynamic thresholds
+    # 0. Fetch Metadata
     metadata = get_zone_metadata(zone_id)
     capacity = int(metadata.get('capacity', 100))
     
-    # Threshold logic (Percentage based)
+    # Threshold logic
     occupancy_rate = (crowd_count / capacity) * 100
-    
     status = "Normal"
     action = "No Action"
     
@@ -54,7 +53,7 @@ def process_record(record_body):
         
     timestamp = datetime.datetime.utcnow().isoformat() + 'Z'
     
-    # 1. Update DynamoDB
+    # 1. Speed Layer: Real-time Dashboard Update (via DynamoDB + Stream)
     table = dynamodb.Table(TABLE_NAME)
     table.put_item(
         Item={
@@ -67,50 +66,56 @@ def process_record(record_body):
         }
     )
     
-    # 2. Log to S3
+    # 2. Batch Layer: Analytics Data Lake (Partitioned S3)
+    # Using Hive-style partitioning for compatibility with pro analytics tools
+    now = datetime.datetime.utcnow()
+    partition_path = now.strftime('year=%Y/month=%m/day=%d')
     event_id = str(uuid.uuid4())
-    log_payload = {
+    
+    analytics_payload = {
         'eventId': event_id,
         'zoneId': zone_id,
         'crowdCount': crowd_count,
+        'capacity': capacity,
+        'occupancyRate': round(occupancy_rate, 2),
         'status': status,
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'ingestionTime': now.isoformat() + 'Z'
     }
     
-    date_path = datetime.datetime.utcnow().strftime('%Y/%m/%d')
-    s3_key = f"logs/{date_path}/{event_id}.json"
+    # We append a newline to make it a JSONL (JSON Lines) format
+    log_data = json.dumps(analytics_payload) + "\n"
+    
+    # Save to S3
+    s3_key = f"analytics/{partition_path}/{zone_id}/{event_id}.json"
     
     s3.put_object(
         Bucket=BUCKET_NAME,
         Key=s3_key,
-        Body=json.dumps(log_payload),
-        ContentType='application/json'
+        Body=log_data,
+        ContentType='application/x-jsonlines'
     )
     
-    # 3. SNS Alert if Critical
+    # 3. Alert Layer
     if status == "Critical":
-        message = f"CRITICAL CONGESTION ALERT: Zone {zone_id} has reached {crowd_count} people. Action required: {action}."
+        message = f"ANALYTICS ALERT: Zone {zone_id} is at {occupancy_rate}% capacity ({crowd_count}/{capacity})."
         sns.publish(
             TopicArn=TOPIC_ARN,
             Message=message,
-            Subject=f"Crowd Alert: {zone_id} CRITICAL"
+            Subject=f"CrowdSync Alert: {zone_id} CRITICAL"
         )
     
-    print(f"Processed record for {zone_id}: {status}")
+    print(f"Processed: {zone_id} | {crowd_count}/{capacity} | {status}")
 
 def lambda_handler(event, context):
     """SQS Triggered Handler."""
-    print(f"Received SQS event with {len(event.get('Records', []))} records.")
-    
-    for record in event.get('Records', []):
+    records = event.get('Records', [])
+    for record in records:
         try:
             process_record(record['body'])
         except Exception as e:
-            print(f"Error processing record {record['messageId']}: {str(e)}")
-            # Re-rising error would cause the whole batch to retry if not using partial failures
-            # For now, we log and continue, but in high-integrity systems we might use partial results
-            raise e 
+            print(f"Error processing record: {str(e)}")
+            # We don't raise here to allow other records in batch to process, 
+            # but in production you'd use a DLQ.
     
-    return {
-        'message': 'Successfully processed batch'
-    }
+    return {'status': 'success', 'processed': len(records)}
