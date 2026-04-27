@@ -11,7 +11,7 @@
 
 ## 🌐 Modern Serverless Architecture (Lambda Architecture)
 
-![CrowdSync Professional Architecture](./architecture_pro.png)
+![CrowdSync Professional Architecture](./architecture_final.png)
 
 ```mermaid
 graph TD
