@@ -11,6 +11,8 @@
 
 ## 🌐 Modern Serverless Architecture (Lambda Architecture)
 
+![CrowdSync Professional Architecture](./architecture_pro.png)
+
 ```mermaid
 graph TD
     subgraph "Ingestion Zone"
@@ -79,6 +81,36 @@ The system features a **Client-Side Intelligence Engine** that manages crowd flo
 *   **Critical Detection**: Monitors for occupancy > 90%.
 *   **Proactive Search**: Scans the venue state for the lowest-occupancy "Normal" zone.
 *   **Dynamic Redirection**: Instantly suggests a redirection strategy (e.g., `Redirect to ZONE-F6`) to prevent bottlenecks before they occur.
+
+---
+
+## 💰 Operational Economics (High-Density Venue Model)
+
+CrowdSync is engineered for high-density scalability with a predictable serverless cost model optimized for the **AWS London (eu-west-2)** region.
+
+### 📊 High-Density Event Baseline
+- **Scale**: 10,000 Concurrent Devices
+- **Frequency**: 1 Pulse Every 10 Seconds
+- **Duration**: 4 Hours
+- **Total Load**: **14.4 Million Telemetry Events**
+
+### 💸 Projected Cost Breakdown (Per 4-Hour Event)
+
+| Service | Component | Projected Cost | Rationale |
+| :--- | :--- | :--- | :--- |
+| **API Gateway** | HTTP API Ingestion | **$18.58** | 14.4M requests @ $1.29/M |
+| **SQS** | Standard Queue Buffer | **$11.52** | 14.4M requests @ $0.40/M + API calls |
+| **S3 Data Lake** | Analytics Ingestion | **$72.00** | 14.4M PUT requests @ $0.005/1K |
+| **Lambda** | Logic & Processing | **$2.45** | SQS Batching reduces execution count by 90% |
+| **DynamoDB** | Live State Storage | **$18.13** | On-Demand writes/reads for 14.4M events |
+| **AppSync** | Real-time Pub/Sub | **$1.15** | WebSocket connection & data transfer |
+| **WAF** | Edge Security | **$18.64** | Inspection for 14.4M global requests |
+| **Other** | CloudFront & SNS | **$4.20** | CDN egress and alert distribution |
+| **TOTAL** | | **$146.67** | |
+
+> [!TIP]
+> **Cost per Attendee**: Approximately **$0.01 per 4-hour window**.
+> **Data Lake Strategy**: High S3 ingestion cost provides 100% event durability and sub-second analytics readiness.
 
 ---
 
