@@ -56,6 +56,37 @@ CrowdSync implements a dual-track **Lambda Architecture**...
 
 ---
 
+---
+
+## ✥ Technical Deep Dive: The Pulse-to-Pixel Journey
+
+To understand how CrowdSync achieves sub-300ms latency while ensuring 100% data durability, here is the step-by-step journey of a single telemetry pulse:
+
+### Stage 1: Ingestion & The "Zero-Trust" Shield
+1.  **IoT Sensors**: Every 10 seconds, sensors across the venue send a `POST` request to the Ingestion API.
+2.  **AWS WAF (The Guardian)**: The request is instantly inspected for SQL injection, bots, and rate-limiting to ensure the platform stays online during a DDoS attack.
+3.  **API Gateway v2**: Acts as the high-throughput entry point. Before accepting data, it triggers the **Auth Lambda**.
+4.  **Auth Lambda**: Performs a secure lookup in **SSM Parameter Store** to verify the `x-api-token`. If valid, it returns an IAM policy allowing the data to pass.
+
+### Stage 2: The "Shock Absorber" (SQS)
+5.  **Amazon SQS**: Instead of going straight to a database (which could crash under sudden spikes), data is buffered in SQS. This ensures that even if traffic triples during a "Half-Time" rush, no data is ever lost.
+
+### Stage 3: Processing & The Analytics Fork
+6.  **Ingest Lambda**: Pulls batches of messages from SQS. It performs a **Dual-Write**:
+    - **Write A (Speed Layer)**: Updates the **DynamoDB Zones** table with the latest occupancy count.
+    - **Write B (Batch Layer)**: Streams the raw JSON event into the **S3 Analytics Data Lake**, partitioned by `year/month/day/zone`.
+
+### Stage 4: Real-Time Broadcast (CDC)
+7.  **DynamoDB Streams**: The exact millisecond the database is updated, it fires a **Change Data Capture (CDC)** event.
+8.  **Notifier Lambda**: Picks up the event, formats it for GraphQL, and sends a mutation to **AWS AppSync**.
+9.  **AWS AppSync (WebSockets)**: The "Bridge." It instantly pushes the update over an active WebSocket connection to every connected administrator dashboard.
+
+### Stage 5: The Mission Control (Dashboard)
+10. **Amazon Cognito**: Ensures that only authorized staff can access the dashboard.
+11. **React UI**: Receives the AppSync update, triggers the **Predictive Redirection Engine**, and updates the visual heatmap—all in under 300ms from the original sensor pulse.
+
+---
+
 ## 🏗️ Architectural Components Breakdown
 
 ### 1. The Ingestion Shield
