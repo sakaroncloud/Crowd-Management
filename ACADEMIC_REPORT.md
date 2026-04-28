@@ -5,11 +5,11 @@ Managing crowd flow in high-density entertainment venues presents a significant 
 
 ## 2. Project Plan
 The development of CrowdSync was structured into five agile phases:
-1.  **Architecture & Design**: Defining the dual-track "Lambda Architecture" to handle both real-time alerts and historic batch analytics.
+1.  **Architecture & Design**: Defining the dual-track "Lambda Architecture" (Amazon Web Services, 2026c) to handle both real-time alerts and historic batch analytics.
 2.  **Ingestion Layer Development**: Establishing a secure, resilient API using API Gateway, WAF, and SQS as a shock absorber.
 3.  **Data Persistence & Streaming**: Configuring DynamoDB for live state and an S3 Data Lake for historic archiving, coupled with DynamoDB Streams for change-data-capture.
-4.  **Real-Time Bridge**: Implementing AWS AppSync (GraphQL WebSockets) to relay database changes to the frontend in milliseconds.
-5.  **Dashboard UI & Deployment**: Building a React-based interactive heatmap and orchestrating the entire deployment via AWS CloudFormation (SAM) and automated Python scripts.
+4.  **Real-Time Bridge**: Implementing AWS AppSync to relay database changes to the frontend in milliseconds (Amazon Web Services, 2026b).
+5.  **Dashboard UI & Deployment**: Building a React-based interactive heatmap (Meta Platforms, Inc., 2026) and orchestrating the entire deployment via AWS CloudFormation (SAM) and automated Python scripts.
 
 ## 3. Cloud Architecture
 CrowdSync utilizes a **100% Serverless Cloud Architecture**. It operates entirely on managed services without the need for Virtual Private Clouds (VPCs), EC2 instances, or manual provisioning. This approach guarantees automatic horizontal scaling, zero idle costs, and built-in fault tolerance across multiple Availability Zones.
@@ -38,16 +38,16 @@ The primary deployment region was selected as **AWS London (`eu-west-2`)**, with
 *   **Standards**: The architecture enforces TLS 1.3 encryption in transit and AWS KMS encryption at rest, adhering to zero-trust security principles.
 
 ## 8. Cloud System Architecture Developed to Solve the Problem
-To satisfy the requirements, a dual-track **Lambda Architecture** was engineered.
+To satisfy the requirements, a dual-track **Lambda Architecture** was engineered (Amazon Web Services, 2026c).
 
 ![CrowdSync Professional Architecture](./architecture_pro.png)
 
 1.  **Ingestion Zone**: Sensors hit an **API Gateway** shielded by **AWS WAF**. A custom **Authorizer Lambda** checks credentials against **SSM**. Traffic is buffered into an **SQS Queue**.
 2.  **Processing & Analytics**: The **Ingest Lambda** pulls SQS batches, performing a dual-write. It updates **DynamoDB** (live state) and logs raw JSONs to an **S3 Data Lake** (partitioned by `year/month/day/zone`).
-3.  **Real-Time Distribution**: **DynamoDB Streams** detect changes instantly, triggering a **Notifier Lambda** which fires a mutation to **AWS AppSync**. AppSync broadcasts the update to the React UI via WebSockets.
+3.  **Real-Time Distribution**: **DynamoDB Streams** detect changes instantly, triggering a **Notifier Lambda** which fires a mutation to **AWS AppSync**. AppSync broadcasts the update to the React UI via WebSockets (Amazon Web Services, 2026b).
 
 ## 9. Implementation Using Any Cloud Platform (i.e. AWS, MS Azure or Google)
-The entire AWS infrastructure was implemented using **Infrastructure as Code (IaC)** via AWS Serverless Application Model (SAM) / CloudFormation (`template.yaml`). 
+The entire AWS infrastructure was implemented using **Infrastructure as Code (IaC)** via AWS Serverless Application Model (SAM) and CloudFormation (Amazon Web Services, 2026a). 
 *   **Automation**: A unified Python orchestrator (`manage.py`) automatically builds the SAM stack, packages the Lambda functions, deploys the CloudFormation changeset, seeds the Cognito Admin user, and deploys the React frontend to an S3/CloudFront CDN. 
 *   This approach ensures the environment is reproducible, version-controlled, and immutable.
 
@@ -71,12 +71,16 @@ The architecture is heavily optimized for high-density environments.
 *Note: SQS batching reduces Lambda invocations by up to 90%, preventing massive compute bills during traffic spikes.*
 
 ## 11. Analysis and Reflection
-**Strengths**: The decoupling of ingestion and processing via SQS proved highly successful. It acts as an effective "shock absorber," preventing database throttling during sudden crowd rushes. The integration of AppSync provided seamless, out-of-the-box WebSocket management, which drastically simplified the React frontend code. The newly added S3 Data Lake ensures raw data is preserved for complex batch processing using tools like Amazon Athena.
+**Strengths**: The decoupling of ingestion and processing via SQS proved highly successful. It acts as an effective "shock absorber," preventing database throttling during sudden crowd rushes. The integration of AppSync provided seamless, out-of-the-box WebSocket management (Amazon Web Services, 2026b), which drastically simplified the React frontend code (Meta Platforms, Inc., 2026). The newly added S3 Data Lake ensures raw data is preserved for complex batch processing.
 
-**Areas for Improvement**: Currently, the predictive redirection engine runs entirely on the client side (React). In future iterations, implementing Amazon SageMaker (Machine Learning) on the backend could analyze historical S3 Data Lake patterns to predict crowd surges *before* they happen, shifting from reactive to truly predictive intelligence.
+**Areas for Improvement**: Currently, the predictive redirection engine runs entirely on the client side (React). In future iterations, implementing Machine Learning on the backend could analyze historical S3 Data Lake patterns to predict crowd surges *before* they happen, shifting from reactive to truly predictive intelligence.
 
 ## 12. References
-1.  Amazon Web Services (2026). *AWS Serverless Application Model (SAM) Developer Guide*. Retrieved from https://docs.aws.amazon.com/serverless-application-model/
-2.  Amazon Web Services (2026). *Building Real-Time Serverless APIs with AWS AppSync*. Retrieved from https://aws.amazon.com/appsync/
-3.  Amazon Web Services (2026). *Implementing Lambda Architecture on AWS*. AWS Architecture Center.
-4.  React Documentation (2026). *Building Interactive UIs with Context and WebSockets*. Retrieved from https://react.dev/
+
+Amazon Web Services, 2026a. *AWS Serverless Application Model (SAM) Developer Guide*. [online] Available at: <https://docs.aws.amazon.com/serverless-application-model/> [Accessed 28 Apr. 2026].
+
+Amazon Web Services, 2026b. *Building Real-Time Serverless APIs with AWS AppSync*. [online] Available at: <https://aws.amazon.com/appsync/> [Accessed 28 Apr. 2026].
+
+Amazon Web Services, 2026c. *Implementing Lambda Architecture on AWS*. [online] AWS Architecture Center.
+
+Meta Platforms, Inc., 2026. *React Documentation: Building Interactive UIs*. [online] Available at: <https://react.dev/> [Accessed 28 Apr. 2026].
