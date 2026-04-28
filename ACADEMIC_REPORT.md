@@ -50,9 +50,7 @@ The development of CrowdSync was structured into six agile phases to ensure meth
 6.  **Dashboard UI & Deployment**: Building a React-based interactive heatmap (Meta Platforms, Inc., 2026) and orchestrating the entire deployment via AWS CloudFormation (SAM) and automated Python scripts for reproducible infrastructure.
 
 ### 2.2 Project Progress
-> [!IMPORTANT]
-> **[PLACEHOLDER: Insert Project Progress]**
-> *Write a brief paragraph outlining what has been finished so far (e.g., prototype deployment, backend ingestion), what is currently left to do (e.g., user acceptance testing, UI polish), and what needs to be done for future stages.*
+The CrowdSync prototype has successfully reached Stage 1 functional maturity. The foundational AWS infrastructure, including the WAF-shielded API Gateway, SQS ingestion buffer, and the dual-write Lambda handler, has been fully deployed and tested. Furthermore, the real-time distribution mechanism utilizing DynamoDB Streams and AWS AppSync has been successfully integrated with a functional React frontend, proving the sub-300ms latency requirement. Currently, minor UI polishing on the React dashboard and rigorous load testing (simulating 10,000+ concurrent devices) are pending. Future enterprise evolution (Stage 2) will focus on integrating machine learning pipelines using Amazon SageMaker to shift from reactive monitoring to proactive crowd surge prediction.
 
 ## 3. Requirements Gathering
 
@@ -75,9 +73,7 @@ To ensure CrowdSync meets enterprise-grade operational standards, the following 
 ## 4. Data Centre
 
 ### 4.1 Type
-> [!IMPORTANT]
-> **[PLACEHOLDER: Insert Data Centre Type]**
-> *Explain the type of data center used by AWS (e.g., Hyperscale Public Cloud Data Center) and why this type is suitable over an on-premise private data center.*
+The platform is deployed within a **Hyperscale Public Cloud Data Center** operated by AWS. This model was chosen over an on-premise or co-located private data center because high-density venue analytics inherently experience massive, unpredictable spikes in traffic (e.g., thousands of attendees moving simultaneously during an intermission). A hyperscale data center provides virtually infinite elasticity, allowing CrowdSync to automatically provision immense compute resources on-demand to process traffic bursts, and then scale back down to zero when the venue is empty, converting fixed capital expenditures (CapEx) into highly optimized operational expenditures (OpEx).
 
 ### 4.2 Site Selection
 The primary deployment region was strategically selected as **AWS London (`eu-west-2`)**, supported by global edge distribution via Amazon CloudFront (`us-east-1` for global WAF rules).
@@ -86,9 +82,7 @@ The primary deployment region was strategically selected as **AWS London (`eu-we
 *   **Security Standards**: The architecture enforces TLS 1.3 encryption for all data in transit across REST and WebSocket APIs. Data at rest in DynamoDB and S3 is protected using AWS Key Management Service (KMS) managed encryption, adhering to the principle of least privilege through scoped IAM roles.
 
 ### 4.3 Topology (Centralized/Zoned/Top-of-Rack/Multi-tier)
-> [!IMPORTANT]
-> **[PLACEHOLDER: Insert Data Centre Topology]**
-> *Discuss the network topology. For AWS, you can discuss the Multi-tier topology (Availability Zones, VPC subnets, though serverless abstracts this) or how AWS constructs its data centers (Spine-and-leaf networks).*
+While the serverless abstraction hides physical infrastructure from the developer, the underlying data center employs a **Multi-tier Zoned Topology**. AWS regions are constructed using isolated Availability Zones (AZs). Each AZ consists of one or more discrete data centers, each with redundant power, networking, and connectivity, housed in separate facilities. Internally, AWS utilizes a high-bandwidth, non-blocking **Spine-and-Leaf** network topology to minimize packet latency between racks, which directly supports the project's strict sub-300ms latency requirement. By utilizing serverless components like DynamoDB and SQS, CrowdSync inherently inherits this multi-zoned fault tolerance, automatically replicating data synchronously across multiple facilities without requiring manual configuration.
 
 ## 5. Cloud Architecture
 
@@ -120,9 +114,23 @@ The entire AWS infrastructure was implemented using **Infrastructure as Code (Ia
 *   This approach ensures the environment is reproducible, strictly version-controlled, and immutable, representing industry best practices for cloud deployment.
 
 ### 6.2 Implementation Screenshots
-> [!IMPORTANT]
-> **[PLACEHOLDER: Insert Implementation Screenshots]**
-> *Insert screenshots of your AWS Console here (e.g., your Lambda functions, SQS queues, or CloudFormation stack successfully deployed). Make sure every screenshot has a caption (e.g., "Figure 2: AWS CloudFormation Stack Deployment Success").*
+> [!NOTE]
+> **[IMAGE PLACEHOLDER 1: AWS CloudFormation Stack]**
+> *Take a screenshot of the AWS CloudFormation console showing your stack successfully deployed (Status: CREATE_COMPLETE or UPDATE_COMPLETE).*
+> 
+> *Figure 2: AWS CloudFormation Stack Deployment Success, demonstrating automated Infrastructure-as-Code provisioning.*
+
+> [!NOTE]
+> **[IMAGE PLACEHOLDER 2: Amazon SQS Queue]**
+> *Take a screenshot of the Amazon SQS console showing your ingestion queue, ideally with some messages visible in the "Messages available" column.*
+> 
+> *Figure 3: Amazon SQS Ingestion Buffer, acting as the fault-tolerant shock absorber for telemetry spikes.*
+
+> [!NOTE]
+> **[IMAGE PLACEHOLDER 3: AWS AppSync GraphQL API]**
+> *Take a screenshot of the AWS AppSync console showing your schema or the Queries testing interface.*
+> 
+> *Figure 4: AWS AppSync GraphQL API interface, bridging the DynamoDB Streams to the React client via WebSockets.*
 
 ## 7. Costing
 The architecture is heavily optimized for high-density environments, balancing performance with aggressive cost management.
@@ -151,9 +159,7 @@ The architecture is heavily optimized for high-density environments, balancing p
 **Areas for Improvement**: Currently, the predictive redirection engine runs entirely on the client side (React). In future iterations, implementing Machine Learning on the backend (e.g., using Amazon SageMaker) could analyze historical S3 Data Lake patterns to predict crowd surges *before* they happen, shifting the platform from reactive monitoring to proactive, AI-driven intelligence.
 
 ### 8.2 Maintenance, Evolution, & Compliance
-> [!IMPORTANT]
-> **[PLACEHOLDER: Insert Maintenance & Evolution Reflection]**
-> *Write a paragraph reflecting on how you will maintain the system long-term. Discuss how it can evolve to meet new business needs (e.g., adding ticket scanning integrations) and how it responds to government regulations (e.g., adapting to new GDPR requirements regarding crowd tracking data).*
+Maintaining a high-velocity telemetry system requires continuous monitoring of cloud metrics (via Amazon CloudWatch) to track error rates and SQS queue depth, ensuring the "shock absorber" is functioning efficiently. As the system evolves to meet future business needs, the highly decoupled architecture allows for seamless integration of new features; for instance, the S3 Data Lake can be easily connected to Amazon QuickSight for business intelligence reporting, or integrated with ticketing APIs to correlate zone density with ticket sales. From a compliance perspective, the system inherently aligns with stringent data protection frameworks (e.g., GDPR). Since the IoT sensors transmit anonymous aggregate counts rather than Personally Identifiable Information (PII), regulatory risk is minimized. Furthermore, automated lifecycle policies on the S3 Data Lake ensure that raw telemetry is systematically archived and eventually deleted in accordance with data retention mandates.
 
 ## 9. References
 
