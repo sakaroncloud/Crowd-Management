@@ -41,6 +41,11 @@ The primary deployment region was strategically selected as **AWS London (`eu-we
 *   It eliminates the operational overhead of patching, scaling, and maintaining Virtual Private Clouds (VPCs) or EC2 instances.
 *   AWS offers the most mature ecosystem of deeply integrated, event-driven services (Lambda, DynamoDB Streams, SQS) required for high-velocity analytics.
 
+**Architectural Trade-off: SQS over Kinesis Data Streams**
+While Amazon Kinesis Data Streams is traditionally considered the industry standard for real-time streaming architectures, this project strategically pivoted to an SQS-based ingestion model. This decision was driven by two key factors:
+1.  **Environmental Constraints**: Initial deployment revealed account-level subscription limitations (`SubscriptionRequiredException`) for Kinesis provisioning. Adapting architecture to strict environmental constraints is a critical real-world engineering requirement.
+2.  **Cost and Complexity**: Kinesis requires managing and paying for provisioned data shards continuously. For the bursty, intermittent nature of venue crowd management, SQS (purely pay-per-request) combined with DynamoDB Streams provides a highly decoupled, fault-tolerant "shock absorber" at a fraction of the idle cost, while still easily achieving the <300ms latency target.
+
 ## 7. Cloud System Architecture Developed to Solve the Problem
 To satisfy the requirements, a highly decoupled, dual-track **Lambda Architecture** was engineered (Amazon Web Services, 2026c).
 
