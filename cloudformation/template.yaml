@@ -492,7 +492,7 @@ Resources:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       ApiId: !Ref HttpApi
-      StageName: $default
+      StageName: prod
       AutoDeploy: true
 
   LambdaAuthorizer:
@@ -540,7 +540,7 @@ Resources:
     Type: AWS::WAFv2::WebACLAssociation
     Condition: HasWebAcl
     Properties:
-      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/apis/${HttpApi}/stages/$default"
+      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/apis/${HttpApi}/stages/prod"
       WebACLArn: !Ref WebAclArn
 
   # ==========================================
