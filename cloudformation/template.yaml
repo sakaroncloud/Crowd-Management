@@ -596,6 +596,7 @@ Resources:
             ErrorCachingMinTTL: 10
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
+        WebACLId: !Ref WebAclArn
 
   # ==========================================
   # CloudWatch Monitoring
