@@ -151,14 +151,14 @@ def main():
                 )
                 try:
                     with urllib.request.urlopen(req, timeout=10) as resp:
-                        pass
+                        print(f"  \033[1;33m[WARN] WAF allowed the probe (Status: {resp.status})\033[0m")
                 except urllib.error.HTTPError as e:
                     if e.code == 403:
                         print(f"  \033[1;32m[SHIELD] WAF blocked the attack! (403 Forbidden)\033[0m")
                     else:
-                        print(f"  \033[1;33m[WARN] WAF returned {e.code} (Check WAF settings)\033[0m")
-                except Exception:
-                    print(f"  \033[1;33m[WARN] WAF allowed the probe (Check WAF settings)\033[0m")
+                        print(f"  \033[1;33m[WARN] WAF returned error {e.code}\033[0m")
+                except Exception as e:
+                    print(f"  \033[1;31m[ERROR] Security probe failed: {str(e)}\033[0m")
 
             for zone_id, state in states.items():
                 count = state.update()
