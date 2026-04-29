@@ -77,8 +77,11 @@ def empty_s3_bucket(bucket_name):
 # --- Commands ---
 def plan():
     print("\n\033[1;33m--- PLANNING INFRASTRUCTURE ---\033[0m")
+    # Ensure artifact bucket exists for plan upload
+    subprocess.run(f"aws s3api head-bucket --bucket {ARTIFACT_BUCKET} --region {REGION} 2>/dev/null || aws s3 mb s3://{ARTIFACT_BUCKET} --region {REGION}", shell=True)
+    
     run_cmd("sam build --template-file template.yaml")
-    run_cmd(f"sam deploy --template-file .aws-sam/build/template.yaml --stack-name {MAIN_STACK} --region {REGION} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} --no-execute-changeset")
+    run_cmd(f"sam deploy --template-file .aws-sam/build/template.yaml --stack-name {MAIN_STACK} --s3-bucket {ARTIFACT_BUCKET} --region {REGION} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} --no-execute-changeset")
 
 def apply():
     print("\n\033[1;32m--- APPLYING INFRASTRUCTURE & UI ---\033[0m")
@@ -146,6 +149,30 @@ export default awsConfig;
     print(f"\n\033[1;32m✥ DEPLOYMENT COMPLETE ✥\033[0m")
     print(f"Live Dashboard: {cloudfront_url}\n")
 
+def status():
+    print("\n\033[1;36m--- CROWDSYNC INFRASTRUCTURE STATUS ---\033[0m")
+    
+    # Refresh logic
+    try:
+        cmd = f'aws cloudformation describe-stacks --stack-name {MAIN_STACK} --region {REGION} --query "Stacks[0].Outputs" --output json'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            outputs = {item['OutputKey']: item['OutputValue'] for item in json.loads(result.stdout)}
+            
+            print(f"\n🚀 \033[1;37mDashboard URL:\033[0m   {outputs.get('CloudFrontUrl', 'N/A')}")
+            print(f"🔗 \033[1;37mAPI Endpoint:\033[0m    {outputs.get('ApiUrl', 'N/A')}")
+            print(f"📡 \033[1;37mGraphQL URL:\033[0m     {outputs.get('AppSyncUrl', 'N/A')}")
+            print("-" * 60)
+            print(f"🆔 \033[1;37mUserPool ID:\033[0m     {outputs.get('UserPoolId', 'N/A')}")
+            print(f"🔑 \033[1;37mClient ID:\033[0m       {outputs.get('UserPoolClientId', 'N/A')}")
+            print("-" * 60)
+            print("\033[1;32mStatus: ONLINE\033[0m")
+        else:
+            print("\033[1;31mStatus: OFFLINE (Stack not found)\033[0m")
+    except Exception as e:
+        print(f"\033[1;31mError checking status: {str(e)}\033[0m")
+
 def destroy():
     print("\n\033[1;31m--- DESTROYING INFRASTRUCTURE ---\033[0m")
     confirm = input("Are you sure you want to completely tear down everything? (y/N): ")
@@ -157,6 +184,18 @@ def destroy():
     frontend_bucket = get_frontend_bucket()
     if frontend_bucket:
         empty_s3_bucket(frontend_bucket)
+        
+    # Also empty the Analytics bucket (which stores historical pulses)
+    analytics_bucket = get_cfn_output(MAIN_STACK, "AnalyticsBucketName") # I should add this output to template.yaml
+    if not analytics_bucket:
+        # Fallback search if output isn't available yet
+        cmd = f'aws cloudformation describe-stack-resources --stack-name {MAIN_STACK} --region {REGION} --query "StackResources[?LogicalResourceId==\'AnalyticsBucket\'].PhysicalResourceId" --output text'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        analytics_bucket = result.stdout.strip()
+    
+    if analytics_bucket and "None" not in analytics_bucket:
+        empty_s3_bucket(analytics_bucket)
+        
     empty_s3_bucket(ARTIFACT_BUCKET)
 
     print("\nDeleting Main Infrastructure...")
@@ -190,15 +229,21 @@ def simulate():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CrowdSync CloudFormation Orchestrator")
-    parser.add_argument("command", choices=["plan", "apply", "destroy", "simulate"], help="Action to perform")
+    parser.add_argument("command", choices=["plan", "apply", "status", "destroy", "simulate"], help="Action to perform")
     
     args = parser.parse_args()
     
-    if args.command == "plan":
-        plan()
-    elif args.command == "apply":
-        apply()
-    elif args.command == "destroy":
-        destroy()
-    elif args.command == "simulate":
-        simulate()
+    try:
+        if args.command == "plan":
+            plan()
+        elif args.command == "apply":
+            apply()
+        elif args.command == "status":
+            status()
+        elif args.command == "destroy":
+            destroy()
+        elif args.command == "simulate":
+            simulate()
+    except KeyboardInterrupt:
+        print("\n\n\033[1;33m🛑 Execution interrupted by user. Returning to Mission Control...\033[0m")
+        sys.exit(0)

@@ -56,10 +56,10 @@ class ZoneState:
         self.zone_id = zone_id
         self.count = start_count
         self.capacity = capacity
-        # Force a spike for ZONE-C3
-        if zone_id == "ZONE-C3":
-            self.target = 80
-            self.count = 12
+        # Force a LONG-LASTING massive spike for ZONE-A1
+        if zone_id == "ZONE-A1":
+            self.target = 98
+            self.count = 30
         else:
             self.target = random.randint(int(capacity * 0.15), int(capacity * 0.85))
         self.ticks_at_target = 0
@@ -77,7 +77,7 @@ class ZoneState:
 
         # Smoothly migrate toward the target (faster for ZONE-C3 spike)
         if self.count < self.target:
-            step = 5 if self.zone_id == "ZONE-C3" else random.choice([1, 2])
+            step = 12 if self.zone_id == "ZONE-A1" else random.choice([1, 2])
             self.count += step
         elif self.count > self.target:
             self.count -= random.choice([0, 1, 2])
@@ -126,11 +126,39 @@ def main():
 
     # Initialize stateful zones
     states = {z: ZoneState(z, count, 100) for z, count in ZONES.items()}
+    i = 0
 
     try:
         while True:
+            i += 1
             now = datetime.now().strftime("%H:%M:%S")
             print(colour(f"\n--- Simulation Tick [{now}] ---", C.CYAN))
+            
+            # --- SECURITY PROBE (WAF TEST) ---
+            # Every 5th tick, try to send a malicious payload to test the WAF
+            if i % 5 == 0:
+                print(f"  \033[1;31m[SECURITY] Sending WAF Probe (XSS Attack)...\033[0m")
+                probe_data = json.dumps({
+                    "zoneId": "HACKER-TEST",
+                    "crowdCount": 999,
+                    "payload": "<script>alert('WAF_TEST')</script>"
+                }).encode()
+                req = urllib.request.Request(
+                    f"{api_url}/crowd-data",
+                    data=probe_data,
+                    headers={"Content-Type": "application/json", "x-api-token": token},
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        pass
+                except urllib.error.HTTPError as e:
+                    if e.code == 403:
+                        print(f"  \033[1;32m[SHIELD] WAF blocked the attack! (403 Forbidden)\033[0m")
+                    else:
+                        print(f"  \033[1;33m[WARN] WAF returned {e.code} (Check WAF settings)\033[0m")
+                except Exception:
+                    print(f"  \033[1;33m[WARN] WAF allowed the probe (Check WAF settings)\033[0m")
 
             for zone_id, state in states.items():
                 count = state.update()

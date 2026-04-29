@@ -245,7 +245,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/ingest_token"
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${IngestToken}"
               - Effect: Allow
                 Action:
                   - s3:PutObject
@@ -334,6 +334,7 @@ Resources:
           capacity: Int
           status: String
           action: String
+          predictedAction: String
           lastUpdated: String
         }
 
@@ -343,7 +344,7 @@ Resources:
         }
 
         type Mutation @aws_iam @aws_cognito_user_pools {
-          updateZone(zoneId: ID!, crowdCount: Int!, capacity: Int, status: String, action: String, lastUpdated: String): Zone
+          updateZone(zoneId: ID!, crowdCount: Int!, capacity: Int, status: String, action: String, predictedAction: String, lastUpdated: String): Zone
             @aws_iam @aws_cognito_user_pools
         }
 
@@ -370,6 +371,13 @@ Resources:
         TableName: !Ref ZonesTable
         AwsRegion: !Ref AWS::Region
 
+  NoneDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: NoneDataSource
+      Type: NONE
+
   # Resolvers
   ListZonesResolver:
     Type: AWS::AppSync::Resolver
@@ -391,21 +399,11 @@ Resources:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
       FieldName: updateZone
-      DataSourceName: !GetAtt ZonesDataSource.Name
+      DataSourceName: !GetAtt NoneDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
-          "operation": "PutItem",
-          "key": {
-            "zoneId": $util.dynamodb.toDynamoDBJson($ctx.args.zoneId)
-          },
-          "attributeValues": {
-            "crowdCount": $util.dynamodb.toDynamoDBJson($ctx.args.crowdCount),
-            "capacity": $util.dynamodb.toDynamoDBJson($ctx.args.capacity),
-            "status": $util.dynamodb.toDynamoDBJson($ctx.args.status),
-            "action": $util.dynamodb.toDynamoDBJson($ctx.args.action),
-            "lastUpdated": $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
-          }
+          "payload": $util.toJson($ctx.args)
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
 
@@ -449,7 +447,7 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:
-          TOKEN_PARAM_NAME: !Sub "/${ProjectName}/${Environment}/ingest_token"
+          TOKEN_PARAM_NAME: !Ref IngestToken
 
   NotifierHandler:
     Type: AWS::Serverless::Function
@@ -550,6 +548,7 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
+    DependsOn: CloudFrontOAC
     Properties:
       DistributionConfig:
         Enabled: true
@@ -559,7 +558,7 @@ Resources:
         Origins:
           - DomainName: !GetAtt FrontendBucket.RegionalDomainName
             Id: !Sub "S3-${FrontendBucket}"
-            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            OriginAccessControlId: !Ref CloudFrontOAC
             S3OriginConfig:
               OriginAccessIdentity: ""
         DefaultCacheBehavior:
@@ -587,6 +586,97 @@ Resources:
             ErrorCachingMinTTL: 10
         ViewerCertificate:
           CloudFrontDefaultCertificate: true
+
+  # ==========================================
+  # CloudWatch Monitoring
+  # ==========================================
+  MissionControlDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${ProjectName}-dashboard-${Environment}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${TelemetryQueue.QueueName}" ]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "Incoming Telemetry (SQS)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${IngestHandler}" ]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "AI Engine Invocations"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${IngestHandler}" ]
+                ],
+                "period": 60,
+                "stat": "Average",
+                "region": "${AWS::Region}",
+                "title": "Processing Latency (ms)"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${IngestHandler}" ]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "System Errors"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "${ZonesTable}" ]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "Database Write Intensity"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApiGateway", "Count", "ApiId", "${HttpApi}" ]
+                ],
+                "period": 60,
+                "stat": "Sum",
+                "region": "${AWS::Region}",
+                "title": "API Gateway Request Count"
+              }
+            }
+          ]
+        }
 
 Outputs:
   ApiUrl:
