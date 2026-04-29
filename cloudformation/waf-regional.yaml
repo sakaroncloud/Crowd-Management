@@ -29,7 +29,7 @@ Resources:
               FieldToMatch:
                 Body: {}
               PositionalConstraint: CONTAINS
-              SearchString: "HACKER"
+              SearchString: "hacker"
               TextTransformations:
                 - Priority: 0
                   Type: LOWERCASE
