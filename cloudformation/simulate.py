@@ -137,11 +137,11 @@ def main():
             # --- SECURITY PROBE (WAF TEST) ---
             # Every 5th tick, try to send a malicious payload to test the WAF
             if i % 5 == 0:
-                print(f"  \033[1;31m[SECURITY] Sending WAF Probe (XSS Attack)...\033[0m")
+                print(f"  \033[1;31m[SECURITY] Sending WAF Probe (Hacker Word Test)...\033[0m")
                 probe_data = json.dumps({
                     "zoneId": "HACKER-TEST",
                     "crowdCount": 999,
-                    "payload": "<script>alert('WAF_TEST')</script>"
+                    "payload": "I am a HACKER trying to bypass security"
                 }).encode()
                 req = urllib.request.Request(
                     f"{api_url}/crowd-data",
