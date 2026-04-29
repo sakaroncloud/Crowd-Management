@@ -104,7 +104,7 @@ To satisfy the requirements, a highly decoupled, dual-track **Lambda Architectur
 > **[PLACEHOLDER: Insert Architecture Diagram Image]**
 > *Ensure you include a caption below the image as per the rubric (e.g., "Figure 1: CrowdSync Serverless Architecture Diagram").*
 
-![Figure 1: CrowdSync Serverless Architecture Diagram](./architecture_pro.png)
+![Figure 1: CrowdSync Pulse-to-Pixel Architecture](./architecture_final.png)
 
 ## 6. Cloud Implementation
 

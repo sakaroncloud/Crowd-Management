@@ -57,6 +57,7 @@ interface Zone {
   capacity: number;
   status: 'Normal' | 'Busy' | 'Critical';
   action: string;
+  predictedAction?: string;
   lastUpdated: string;
 }
 
@@ -281,6 +282,7 @@ const Dashboard: React.FC = () => {
         capacity
         status
         action
+        predictedAction
         lastUpdated
       }
     }
@@ -299,8 +301,7 @@ const Dashboard: React.FC = () => {
       const newStatus = calculateStatus(updatedZone.crowdCount, updatedZone.capacity);
       const newZone = { 
         ...updatedZone, 
-        status: newStatus,
-        action: newStatus === 'Critical' ? 'Restrict Entry / Redirect Flow' : 'No Action'
+        status: newStatus
       };
 
       if (newStatus === 'Critical') {
@@ -333,6 +334,7 @@ const Dashboard: React.FC = () => {
         capacity
         status
         action
+        predictedAction
         lastUpdated
       }
     }
@@ -376,8 +378,7 @@ const Dashboard: React.FC = () => {
         const zoneStatus = calculateStatus(z.crowdCount, z.capacity);
         const zone = {
           ...z,
-          status: zoneStatus,
-          action: zoneStatus === 'Critical' ? 'Restrict Entry / Redirect Flow' : 'No Action'
+          status: zoneStatus
         };
 
         if (zone.status === 'Critical') {
@@ -614,6 +615,21 @@ const Dashboard: React.FC = () => {
                           <div className={`text-[8px] font-bold uppercase tracking-[0.15em] mb-1.5 opacity-40 ${zone.status === 'Normal' ? 'text-primary' : ''}`}>Primary Response</div>
                           <p className="text-xs font-bold leading-relaxed">{zone.action}</p>
                         </div>
+
+                        {/* NEW: Predictive Alert Display */}
+                        {zone.predictedAction && zone.predictedAction !== 'Stable' && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-4 rounded-xl border-2 border-primary/20 bg-primary/5 text-primary shadow-lg shadow-primary/5 animate-pulse"
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <Zap size={14} className="animate-bounce" fill="currentColor" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">AI Prediction</span>
+                            </div>
+                            <p className="text-[11px] font-bold leading-snug">{zone.predictedAction}</p>
+                          </motion.div>
+                        )}
                       </div>
 
                       <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-50 flex justify-between items-center group-hover:bg-white transition-colors">

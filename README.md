@@ -15,12 +15,13 @@
 
 ```mermaid
 graph TD
-    subgraph "Ingestion Zone"
-        Sensor[IoT Sensors] -->|POST /crowd-data| WAF[AWS WAF]
+    subgraph "Trigger & Ingestion"
+        Sensor[Venue IoT Sensors] -->|HTTPS POST| WAF[AWS WAF]
+        Simulator[Python Telemetry Simulator] -->|HTTPS POST| WAF
         WAF --> APIGW[API Gateway v2]
         APIGW -->|Authorize| AuthL[Auth Lambda]
         AuthL <--> SSM[SSM Parameter Store]
-        APIGW -->|Buffer| SQS[Amazon SQS]
+        APIGW -->|Shock Absorber| SQS[Amazon SQS]
     end
 
     subgraph "Processing & Analytics"
@@ -41,6 +42,41 @@ graph TD
         CloudFront[CloudFront] -->|Serve| UI
     end
 ```
+
+### ✥ Advanced Features
+- **Heuristic Predictive Engine**: A stateful Python logic layer that calculates crowd velocity and generates proactive alerts BEFORE a bottleneck occurs.
+- **Mission Control Dashboard**: A unified AWS CloudWatch dashboard that monitors 6+ services (SQS, Lambda, DynamoDB, API Gateway) on a single screen.
+- **Dual-Track Data Pipeline**: A high-speed "Lambda Architecture" that separates ingestion (API Gateway/SQS) from real-time broadcast (AppSync/WebSockets).
+- **Proactive Security**: Protected by a global AWS WAF, Cognito Identity Management, and SSM Parameter Store for zero-hardcoded secrets.
+
+### ✥ Operations Command Center
+```bash
+# View live status and all AWS endpoints
+python3 manage.py status
+
+# Run the predictive telemetry simulator
+python3 manage.py simulate
+
+# Plan/Apply infrastructure changes
+python3 manage.py plan
+python3 manage.py apply
+```
+
+### ✥ Architecture Deep Dive
+1. **The Edge**: AWS CloudFront + WAF (Shields the React UI).
+2. **Ingestion**: API Gateway (Auth by SSM Token) → SQS (Shock Absorber).
+3. **Intelligence**: Ingest Lambda (Heuristic Logic) → DynamoDB (Persistent State).
+4. **Broadcast**: DynamoDB Streams → Notifier Lambda → AppSync (WebSockets).
+5. **Observability**: CloudWatch Mission Control (Unified Monitoring).
+
+---
+
+### ✥ Academic Justification
+This project implements the **AWS Well-Architected Framework** by focusing on:
+*   **Reliability**: Using SQS to decouple data producers from consumers.
+*   **Performance Efficiency**: Leveraging a serverless "Pay-as-you-go" model.
+*   **Security**: Enforcing the Principle of Least Privilege via scoped IAM Roles and Cognito Auth.
+*   **Observability**: Providing real-time dashboarding and log-based auditing via CloudWatch.
 
 CrowdSync implements a dual-track **Lambda Architecture**...
 

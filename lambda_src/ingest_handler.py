@@ -51,10 +51,33 @@ def process_record(record_body):
         status = "Busy"
         action = "Monitor closely"
         
-    timestamp = datetime.datetime.utcnow().isoformat() + 'Z'
-    
-    # 1. Speed Layer: Real-time Dashboard Update (via DynamoDB + Stream)
+    # 1. Heuristic Predictive Engine (with Hysteresis/Smoothing)
     table = dynamodb.Table(TABLE_NAME)
+    prev_item = table.get_item(Key={'zoneId': zone_id}).get('Item', {})
+    
+    prev_count = int(prev_item.get('crowdCount', crowd_count))
+    prev_predicted = prev_item.get('predictedAction', 'Stable')
+    # Use TTL or a timestamp to keep the alert "sticky"
+    prev_expiry = float(prev_item.get('predictiveExpiry', 0))
+    
+    velocity = crowd_count - prev_count
+    predicted_action = "Stable"
+    predictive_expiry = 0
+    
+    # Check if we should RETAIN an existing alert (Smoothing)
+    if prev_predicted != "Stable" and now.timestamp() < prev_expiry and occupancy_rate > 60:
+        predicted_action = prev_predicted
+        predictive_expiry = prev_expiry
+        action = f"PROACTIVE: Monitoring {zone_id} surge"
+
+    # Trigger NEW alert if velocity is high
+    if status != "Critical" and occupancy_rate > 70 and velocity > 5:
+        predicted_action = f"PREDICTIVE_ALERT: Bottleneck expected (Velocity: +{velocity})"
+        predictive_expiry = now.timestamp() + 180 # Stay active for 3 minutes
+        action = f"PROACTIVE: Prepare for {zone_id} overflow"
+    
+    # 2. Speed Layer: Real-time Dashboard Update (via DynamoDB + Stream)
+    timestamp = datetime.datetime.utcnow().isoformat() + 'Z'
     table.put_item(
         Item={
             'zoneId': zone_id,
@@ -62,6 +85,8 @@ def process_record(record_body):
             'capacity': capacity,
             'status': status,
             'action': action,
+            'predictedAction': predicted_action,
+            'predictiveExpiry': str(predictive_expiry),
             'lastUpdated': timestamp
         }
     )

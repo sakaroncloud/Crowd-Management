@@ -90,14 +90,16 @@ def apply():
     subprocess.run(f"aws s3api head-bucket --bucket {ARTIFACT_BUCKET} --region {REGION} 2>/dev/null || aws s3 mb s3://{ARTIFACT_BUCKET} --region {REGION}", shell=True)
     
     # 2. WAF Deploy
-    print("\nDeploying Global WAF...")
-    run_cmd(f"aws cloudformation deploy --template-file waf-global.yaml --stack-name {WAF_STACK} --region {WAF_REGION} --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} --no-fail-on-empty-changeset")
-    
+    print("\nDeploying Regional WAF...")
+    # For API Gateway, WAF must be in the same region as the API
+    run_cmd(f"aws cloudformation deploy --template-file waf-regional.yaml --stack-name {WAF_STACK} --region {REGION} --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} --no-fail-on-empty-changeset")
+    waf_arn = get_cfn_output(WAF_STACK, "WebAclArn", region=REGION)
+
     # 3. Main Infrastructure Deploy
     print("\nBuilding and Deploying Main Infrastructure...")
     run_cmd("sam build --template-file template.yaml")
     run_cmd(f"sam package --output-template-file packaged.yaml --s3-bucket {ARTIFACT_BUCKET} --region {REGION}")
-    run_cmd(f"sam deploy --template-file packaged.yaml --stack-name {MAIN_STACK} --region {REGION} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} --no-fail-on-empty-changeset")
+    run_cmd(f"sam deploy --template-file packaged.yaml --stack-name {MAIN_STACK} --region {REGION} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameter-overrides ProjectName={PROJECT_NAME} Environment={ENVIRONMENT} WebAclArn={waf_arn} --no-fail-on-empty-changeset")
 
     # 4. Extract Outputs & Inject into React
     print("\nExtracting dynamic AWS outputs...")

@@ -28,23 +28,25 @@ def lambda_handler(event, context):
                 status = new_image['status']['S']
                 action = new_image['action']['S']
                 last_updated = new_image['lastUpdated']['S']
+                predicted_action = new_image.get('predictedAction', {'S': 'Stable'})['S']
                 
-                print(f"DEBUG: Processing Zone {zone_id} ({crowd_count}/{capacity})")
+                print(f"DEBUG: Processing Zone {zone_id} ({crowd_count}/{capacity}) | Prediction: {predicted_action}")
                 
                 # Send to AppSync
-                send_to_appsync(zone_id, crowd_count, capacity, status, action, last_updated)
+                send_to_appsync(zone_id, crowd_count, capacity, status, action, predicted_action, last_updated)
             except Exception as e:
                 print(f"DEBUG ERROR: Failed to parse record: {str(e)}")
 
-def send_to_appsync(zone_id, crowd_count, capacity, status, action, last_updated):
+def send_to_appsync(zone_id, crowd_count, capacity, status, action, predicted_action, last_updated):
     query = """
-    mutation UpdateZone($zoneId: ID!, $crowdCount: Int!, $capacity: Int, $status: String, $action: String, $lastUpdated: String) {
-        updateZone(zoneId: $zoneId, crowdCount: $crowdCount, capacity: $capacity, status: $status, action: $action, lastUpdated: $lastUpdated) {
+    mutation UpdateZone($zoneId: ID!, $crowdCount: Int!, $capacity: Int, $status: String, $action: String, $predictedAction: String, $lastUpdated: String) {
+        updateZone(zoneId: $zoneId, crowdCount: $crowdCount, capacity: $capacity, status: $status, action: $action, predictedAction: $predictedAction, lastUpdated: $lastUpdated) {
             zoneId
             crowdCount
             capacity
             status
             action
+            predictedAction
             lastUpdated
         }
     }
@@ -56,6 +58,7 @@ def send_to_appsync(zone_id, crowd_count, capacity, status, action, last_updated
         "capacity": capacity,
         "status": status,
         "action": action,
+        "predictedAction": predicted_action,
         "lastUpdated": last_updated
     }
     

@@ -24,6 +24,9 @@ Globals:
         PROJECT_NAME: !Ref ProjectName
         ENVIRONMENT: !Ref Environment
 
+Conditions:
+  HasWebAcl: !Not [ !Equals [ !Ref WebAclArn, "" ] ]
+
 Resources:
   # ==========================================
   # DynamoDB
@@ -532,6 +535,13 @@ Resources:
       Target: !Sub "integrations/${SqsIntegration}"
       AuthorizationType: CUSTOM
       AuthorizerId: !Ref LambdaAuthorizer
+
+  HttpApiWafAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: HasWebAcl
+    Properties:
+      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/apis/${HttpApi}/stages/$default"
+      WebACLArn: !Ref WebAclArn
 
   # ==========================================
   # CloudFront
