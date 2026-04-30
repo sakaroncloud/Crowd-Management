@@ -64,10 +64,10 @@ To provide actionable venue intelligence, CrowdSync must fulfill the following f
 
 ### 3.2 Non-Functional Requirement Specification
 To ensure CrowdSync meets enterprise-grade operational standards, the following non-functional requirements were established:
-*   **High Throughput & Scalability**: Capable of dynamically scaling to handle 14.4 million events per 4-hour window (10,000 concurrent devices) without dropping payloads or requiring manual intervention.
-*   **Low Latency**: End-to-end processing (from the sensor's API request to the WebSocket update on the dashboard) must complete in under 300 milliseconds.
+*   **High Throughput & Scalability**: Capable of dynamically scaling to handle over **34,500 events** per 4-hour window (simulating 24 concurrent Edge AI devices pulsing every 10 seconds). The architecture is inherently scalable to 10M+ events without manual intervention.
+*   **Low Latency**: End-to-end processing (from the camera's metadata pulse to the WebSocket update on the dashboard) must complete in under 300 milliseconds.
 *   **Security & Zero-Trust**: All public endpoints must be shielded by a Web Application Firewall (WAF) to mitigate Layer 7 attacks. Ingestion must use Edge-side AI to prevent raw video transmission, and internal APIs must enforce strict token-based authentication via SSM. Dashboard access is secured via Amazon Cognito.
-*   **Cost-Efficiency**: The infrastructure must utilize a pay-per-use billing model, minimizing compute costs through techniques like SQS batching, and scaling to $0 when the venue is inactive.
+*   **Cost-Efficiency**: The infrastructure must utilize a pay-per-use billing model, leveraging the **AWS Free Tier** for compute and storage, making professional analytics accessible for small-to-medium venues.
 *   **High Availability & Fault Tolerance**: The architecture must span multiple Availability Zones (AZs) inherently (via Serverless services) to prevent single points of failure.
 
 ## 4. Data Centre
@@ -134,21 +134,22 @@ The entire AWS infrastructure was implemented using **Infrastructure as Code (Ia
 > *Figure 4: AWS AppSync GraphQL API interface, bridging the DynamoDB Streams to the React client via WebSockets.*
 
 ## 7. Costing
-The architecture is heavily optimized for high-density environments, balancing performance with aggressive cost management.
+The architecture is optimized for **Operational Economics**, demonstrating how professional analytics can be deployed for small-to-medium venues at a minimal price point.
 
-**Baseline**: 10,000 Concurrent Devices, 1 Pulse Every 10 Seconds, 4 Hours duration (Total: 14.4 Million Events).
+**Baseline**: 24 Concurrent Edge AI Devices, 1 Pulse Every 10 Seconds, 4 Hours duration (Total: **34,560 Events**).
 
 | Service | Component | Projected Cost | Rationale |
 | :--- | :--- | :--- | :--- |
-| **API Gateway** | HTTP API Ingestion | **$18.58** | 14.4M requests @ $1.29/M |
-| **SQS** | Standard Queue Buffer | **$11.52** | 14.4M requests @ $0.40/M + API calls |
-| **S3 Data Lake** | Analytics Ingestion | **$72.00** | 14.4M PUT requests @ $0.005/1K |
-| **Lambda** | Logic & Processing | **$2.45** | SQS Batching reduces execution count by 90% |
-| **DynamoDB** | Live State Storage | **$18.13** | On-Demand writes/reads for 14.4M events |
-| **AppSync** | Real-time Pub/Sub | **$1.15** | WebSocket connection & data transfer |
-| **WAF** | Edge Security | **$18.64** | Inspection for 14.4M global requests |
-| **Other** | CloudFront & SNS | **$4.20** | CDN egress and alert distribution |
-| **TOTAL** | | **$146.67** | Approximately **$0.01 per attendee**. |
+| **API Gateway** | HTTP API Ingestion | **$0.04** | 34.5K requests @ $1.29/M |
+| **SQS** | Standard Queue Buffer | **$0.01** | 34.5K requests @ $0.40/M |
+| **S3 Data Lake** | Analytics Ingestion | **$0.17** | 34.5K PUT requests @ $0.005/1K |
+| **Lambda** | Logic & Processing | **$0.00** | Covered by AWS Permanent Free Tier |
+| **DynamoDB** | Live State Storage | **$0.04** | On-Demand writes/reads for 34.5K events |
+| **AppSync** | Real-time Pub/Sub | **$0.01** | WebSocket connection & data transfer |
+| **WAF** | Edge Security | **$18.00** | Fixed monthly cost for ACL and Rule inspection |
+| **TOTAL** | | **$18.27** | Approximately **$0.76 per camera per month**. |
+
+*Note: By utilizing serverless components, the compute and storage costs are effectively $0 for this scale, meaning the venue only pays for high-end security protection (WAF).*
 
 *Note: SQS batching acts as a cost-control mechanism, reducing Lambda invocations by up to 90% and preventing massive compute bills during traffic spikes.*
 

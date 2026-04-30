@@ -163,29 +163,28 @@ The system features a **Client-Side Intelligence Engine** that manages crowd flo
 
 CrowdSync is engineered for high-density scalability with a predictable serverless cost model optimized for the **AWS London (eu-west-2)** region.
 
-### 📊 High-Density Event Baseline
-- **Scale**: 10,000 Concurrent Devices
+### 📊 Small Venue Baseline (SME Model)
+- **Scale**: 24 Concurrent Edge AI Devices (Cameras)
 - **Frequency**: 1 Pulse Every 10 Seconds
 - **Duration**: 4 Hours
-- **Total Load**: **14.4 Million Telemetry Events**
+- **Total Load**: **34,560 Telemetry Events**
 
 ### 💸 Projected Cost Breakdown (Per 4-Hour Event)
 
 | Service | Component | Projected Cost | Rationale |
 | :--- | :--- | :--- | :--- |
-| **API Gateway** | HTTP API Ingestion | **$18.58** | 14.4M requests @ $1.29/M |
-| **SQS** | Standard Queue Buffer | **$11.52** | 14.4M requests @ $0.40/M + API calls |
-| **S3 Data Lake** | Analytics Ingestion | **$72.00** | 14.4M PUT requests @ $0.005/1K |
-| **Lambda** | Logic & Processing | **$2.45** | SQS Batching reduces execution count by 90% |
-| **DynamoDB** | Live State Storage | **$18.13** | On-Demand writes/reads for 14.4M events |
-| **AppSync** | Real-time Pub/Sub | **$1.15** | WebSocket connection & data transfer |
-| **WAF** | Edge Security | **$18.64** | Inspection for 14.4M global requests |
-| **Other** | CloudFront & SNS | **$4.20** | CDN egress and alert distribution |
-| **TOTAL** | | **$146.67** | |
+| **API Gateway** | HTTP API Ingestion | **$0.04** | 34.5K requests @ $1.29/M |
+| **SQS** | Standard Queue Buffer | **$0.01** | 34.5K requests @ $0.40/M |
+| **S3 Data Lake** | Analytics Ingestion | **$0.17** | 34.5K PUT requests @ $0.005/1K |
+| **Lambda** | Logic & Processing | **$0.00** | Covered by AWS Permanent Free Tier |
+| **DynamoDB** | Live State Storage | **$0.04** | On-Demand writes/reads for 34.5K events |
+| **AppSync** | Real-time Pub/Sub | **$0.01** | WebSocket connection & data transfer |
+| **WAF** | Edge Security | **$18.00** | Fixed monthly cost for ACL and Rule inspection |
+| **TOTAL** | | **$18.27** | |
 
 > [!TIP]
-> **Cost per Attendee**: Approximately **$0.01 per 4-hour window**.
-> **Data Lake Strategy**: High S3 ingestion cost provides 100% event durability and sub-second analytics readiness.
+> **Cost per Camera**: Approximately **$0.76 per month**.
+> **Free Tier Strategy**: At this scale, the compute and database costs are effectively $0, making professional analytics accessible for small businesses.
 
 ---
 
