@@ -71,10 +71,11 @@ python3 manage.py apply
 ### ✥ Architecture Deep Dive
 1. **The Edge**: CCTV Cameras → Edge AI Gateway (Local Inference) → Metadata Extraction.
 2. **Security Shield**: AWS WAF (Global & Regional) + CloudFront (Shields the entire platform).
-3. **Ingestion**: API Gateway (Auth via SSM Token) → SQS (Elastic Shock Absorber).
-4. **Intelligence**: Ingest Lambda (Heuristic Analytics) → DynamoDB (State) + S3 (Data Lake).
-5. **Broadcast**: DynamoDB Streams (CDC) → Notifier Lambda → AppSync (WebSockets).
-6. **Observability**: CloudWatch Mission Control (Unified 6-Service Dashboard).
+3. **Ingestion**: API Gateway (Auth via **Lambda 1: Authorizer**) → SQS (Elastic Shock Absorber).
+4. **Intelligence**: **Lambda 2: Ingest** (Heuristic Analytics) → DynamoDB (State) + S3 (Audit Data Lake).
+5. **Real-Time Pipeline**: DynamoDB Streams → **Lambda 3: Notifier** → AppSync (WebSockets).
+6. **Data Retrieval**: **Lambda 4: Query/Read** (Lambda Data Source for AppSync) → Merged State & Metadata.
+7. **Observability**: CloudWatch Mission Control (Unified 6-Service Dashboard).
 
 ---
 

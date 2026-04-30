@@ -155,7 +155,7 @@ The architecture is heavily optimized for high-density environments, balancing p
 ## 8. Analysis and Reflection
 
 ### 8.1 Evaluation & Critical Appraisal
-**Strengths**: The decoupling of ingestion and processing via SQS proved highly successful. It acts as an effective "shock absorber," preventing database throttling and dropped payloads during sudden crowd rushes. The choice of AppSync provided seamless, out-of-the-box WebSocket management (Amazon Web Services, 2026b), which drastically simplified the React frontend code (Meta Platforms, Inc., 2026). The dual-write approach to an S3 Data Lake ensures raw data is preserved durably for complex batch processing.
+**Strengths**: The decoupling of ingestion and processing via a **4-Lambda Architecture** (Authorizer, Ingest, Notifier, and Query) proved highly successful. This separation of concerns ensured that security, ingestion, real-time broadcasting, and data retrieval could scale independently. The use of SQS as a "shock absorber" prevented database throttling, while the custom Query Lambda allowed for seamless merging of live telemetry with zone metadata for the frontend.
 
 **Areas for Improvement**: Currently, the predictive redirection engine runs entirely on the client side (React). In future iterations, implementing Machine Learning on the backend (e.g., using Amazon SageMaker) could analyze historical S3 Data Lake patterns to predict crowd surges *before* they happen, shifting the platform from reactive monitoring to proactive, AI-driven intelligence.
 
