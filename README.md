@@ -15,31 +15,37 @@
 
 ```mermaid
 graph TD
-    subgraph "Trigger & Ingestion"
-        Sensor[Venue IoT Sensors] -->|HTTPS POST| WAF[AWS WAF]
-        Simulator[Python Telemetry Simulator] -->|HTTPS POST| WAF
+    subgraph "The Edge (Venue Hardware)"
+        Cameras[CCTV Cameras] -->|RTSP/ONVIF| EdgeAI[Edge AI Gateway]
+        EdgeAI -->|Local Inference| Meta[Metadata Extraction]
+        Simulator[Python Telemetry Simulator] -.->|Simulated Pulses| WAF
+    end
+
+    subgraph "Ingestion & Security"
+        Meta -->|HTTPS POST + Token| WAF[AWS WAF]
         WAF --> APIGW[API Gateway v2]
-        APIGW -->|Authorize| AuthL[Auth Lambda]
+        APIGW -->|Verify Token| AuthL[Auth Lambda]
         AuthL <--> SSM[SSM Parameter Store]
-        APIGW -->|Shock Absorber| SQS[Amazon SQS]
+        APIGW -->|Elastic Buffer| SQS[Amazon SQS]
     end
 
-    subgraph "Processing & Analytics"
+    subgraph "Intelligence & Persistence"
         SQS --> IngestL[Ingest Lambda]
-        IngestL -->|Write| DDB[(DynamoDB Zones)]
-        IngestL -->|Batch Log| S3[(S3 Data Lake)]
+        IngestL -->|Update State| DDB[(DynamoDB Zones)]
+        IngestL -->|Audit Log| S3[(S3 Data Lake)]
     end
 
-    subgraph "Real-Time Distribution"
+    subgraph "Real-Time Broadcast (CDC)"
         DDB -->|Stream| Stream[DDB Streams]
         Stream --> NotifierL[Notifier Lambda]
         NotifierL --> AppSync[AWS AppSync GraphQL]
-        AppSync -->|WebSocket| UI[React Dashboard]
+        AppSync -->|WebSockets| UI[React Dashboard]
     end
 
-    subgraph "Security & Identity"
-        Cognito[Amazon Cognito] -->|Auth| UI
-        CloudFront[CloudFront] -->|Serve| UI
+    subgraph "Access Control"
+        Cognito[Amazon Cognito] -->|Dashboard Auth| UI
+        CloudFront[CloudFront] -->|Secure Hosting| UI
+        UI -->|WAF Protected| CloudFront
     end
 ```
 
@@ -63,11 +69,12 @@ python3 manage.py apply
 ```
 
 ### ✥ Architecture Deep Dive
-1. **The Edge**: AWS CloudFront + WAF (Shields the React UI).
-2. **Ingestion**: API Gateway (Auth by SSM Token) → SQS (Shock Absorber).
-3. **Intelligence**: Ingest Lambda (Heuristic Logic) → DynamoDB (Persistent State).
-4. **Broadcast**: DynamoDB Streams → Notifier Lambda → AppSync (WebSockets).
-5. **Observability**: CloudWatch Mission Control (Unified Monitoring).
+1. **The Edge**: CCTV Cameras → Edge AI Gateway (Local Inference) → Metadata Extraction.
+2. **Security Shield**: AWS WAF (Global & Regional) + CloudFront (Shields the entire platform).
+3. **Ingestion**: API Gateway (Auth via SSM Token) → SQS (Elastic Shock Absorber).
+4. **Intelligence**: Ingest Lambda (Heuristic Analytics) → DynamoDB (State) + S3 (Data Lake).
+5. **Broadcast**: DynamoDB Streams (CDC) → Notifier Lambda → AppSync (WebSockets).
+6. **Observability**: CloudWatch Mission Control (Unified 6-Service Dashboard).
 
 ---
 
@@ -99,10 +106,10 @@ CrowdSync implements a dual-track **Lambda Architecture**...
 To understand how CrowdSync achieves sub-300ms latency while ensuring 100% data durability, here is the step-by-step journey of a single telemetry pulse:
 
 ### Stage 1: Ingestion & The "Zero-Trust" Shield
-1.  **IoT Sensors**: Every 10 seconds, sensors across the venue send a `POST` request to the Ingestion API.
-2.  **AWS WAF (The Guardian)**: The request is instantly inspected for SQL injection, bots, and rate-limiting to ensure the platform stays online during a DDoS attack.
-3.  **API Gateway v2**: Acts as the high-throughput entry point. Before accepting data, it triggers the **Auth Lambda**.
-4.  **Auth Lambda**: Performs a secure lookup in **SSM Parameter Store** to verify the `x-api-token`. If valid, it returns an IAM policy allowing the data to pass.
+1.  **CCTV & Edge AI**: Cameras stream video to local Edge devices. Local inference detects crowd counts and sends only metadata.
+2.  **AWS WAF (The Guardian)**: Every request is inspected at the Edge for SQL injection, bots, and rate-limiting.
+3.  **API Gateway v2**: High-throughput entry point. Triggers the **Auth Lambda** for token validation.
+4.  **Auth Lambda**: Verifies the `x-api-token` against **SSM Parameter Store** secrets.
 
 ### Stage 2: The "Shock Absorber" (SQS)
 5.  **Amazon SQS**: Instead of direct database writes (which could fail during "bursty" events like half-time rushes), data is buffered in SQS. This provides a 100% elastic buffer that handles unpredictable spikes instantly without the cost or complexity of Kinesis shards. It treats each CCTV pulse as a discrete, independent event for processing.

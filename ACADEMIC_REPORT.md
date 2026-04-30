@@ -44,7 +44,7 @@ Managing crowd flow in high-density entertainment venues presents a significant 
 The development of CrowdSync was structured into six agile phases to ensure methodical implementation, validation, and alignment with project milestones:
 1.  **Requirements & Problem Definition**: Gathering system specifications for high-throughput crowd monitoring, defining the problem domain, and mapping the core functional and non-functional requirements.
 2.  **Architecture & Design**: Defining the dual-track "Lambda Architecture" (Amazon Web Services, 2026c) to handle both real-time alerts and historic batch analytics securely.
-3.  **Ingestion Layer Development**: Establishing a secure, resilient API using API Gateway, AWS WAF for edge protection, and Amazon SQS as a fault-tolerant shock absorber.
+3.  **Ingestion & Edge Layer**: Implementing a secure, resilient pipeline starting from local CCTV Edge AI devices, through AWS WAF protection, into an SQS ingestion buffer.
 4.  **Data Persistence & Streaming**: Configuring DynamoDB for highly available live state storage and an S3 Data Lake for historic archiving, coupled with DynamoDB Streams for change-data-capture.
 5.  **Real-Time Bridge**: Implementing AWS AppSync to relay database changes to the frontend in milliseconds using GraphQL WebSockets (Amazon Web Services, 2026b).
 6.  **Dashboard UI & Deployment**: Building a React-based interactive heatmap (Meta Platforms, Inc., 2026) and orchestrating the entire deployment via AWS CloudFormation (SAM) and automated Python scripts for reproducible infrastructure.
@@ -66,7 +66,7 @@ To provide actionable venue intelligence, CrowdSync must fulfill the following f
 To ensure CrowdSync meets enterprise-grade operational standards, the following non-functional requirements were established:
 *   **High Throughput & Scalability**: Capable of dynamically scaling to handle 14.4 million events per 4-hour window (10,000 concurrent devices) without dropping payloads or requiring manual intervention.
 *   **Low Latency**: End-to-end processing (from the sensor's API request to the WebSocket update on the dashboard) must complete in under 300 milliseconds.
-*   **Security & Zero-Trust**: All public endpoints must be shielded by a Web Application Firewall (WAF). Internal ingestion APIs must enforce strict token-based authentication, and dashboard access must be secured via Amazon Cognito.
+*   **Security & Zero-Trust**: All public endpoints must be shielded by a Web Application Firewall (WAF) to mitigate Layer 7 attacks. Ingestion must use Edge-side AI to prevent raw video transmission, and internal APIs must enforce strict token-based authentication via SSM. Dashboard access is secured via Amazon Cognito.
 *   **Cost-Efficiency**: The infrastructure must utilize a pay-per-use billing model, minimizing compute costs through techniques like SQS batching, and scaling to $0 when the venue is inactive.
 *   **High Availability & Fault Tolerance**: The architecture must span multiple Availability Zones (AZs) inherently (via Serverless services) to prevent single points of failure.
 
