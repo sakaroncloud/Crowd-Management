@@ -153,12 +153,18 @@ The architecture is optimized for **Operational Economics**, demonstrating how p
 | **Lambda** | Logic & Processing | **$0.00** | Covered by AWS Permanent Free Tier |
 | **DynamoDB** | Live State Storage | **$0.04** | On-Demand writes/reads for 34.5K events |
 | **AppSync** | Real-time Pub/Sub | **$0.01** | WebSocket connection & data transfer |
-| **WAF** | Edge Security | **$18.00** | Fixed monthly cost for ACL and Rule inspection |
-| **TOTAL** | | **$18.27** | Approximately **$0.76 per camera per month**. |
+| **WAF** | Edge Security | **$15.00** | 2 Web ACLs + 4 active security rules |
+| **TOTAL** | | **$15.27** | Monthly Production Baseline |
 
-*Note: By utilizing serverless components, the compute and storage costs are effectively $0 for this scale, meaning the venue only pays for high-end security protection (WAF).*
+### 7.1 Operational Economics: The "Zero-Idle" Advantage
+A key architectural achievement of CrowdSync is its **Consumption-Based Cost Model**. While the monthly baseline is $15.27, the majority of this cost is the fixed security "insurance" provided by AWS WAF.
 
-### 7.1 Future Evolution & Enterprise Branding
+*   **During Events (4-5 Hours)**: The system processes high-velocity telemetry for approximately **$0.03 per hour**.
+*   **Between Events**: The usage-based services (Lambda, SQS, AppSync) automatically scale down to **$0.00**, ensuring the venue is never billed for idle compute time.
+
+*Note: SQS batching acts as a cost-control mechanism, reducing Lambda invocations by up to 90% and preventing massive compute bills during traffic spikes.*
+
+### 7.2 Future Evolution & Enterprise Branding
 To transition from a prototype to a commercial enterprise solution, the following additional networking costs would apply:
 
 | Service | Component | Projected Cost | Rationale |
