@@ -99,25 +99,27 @@ While Amazon Kinesis Data Streams is traditionally considered the industry stand
 3.  **Environmental Constraints**: Initial deployment revealed account-level limitations (`SubscriptionRequiredException`) for Kinesis. Adapting to such constraints is a key real-world engineering competency, and SQS combined with DynamoDB Streams provided a functionally equivalent real-time bridge with significantly lower operational complexity.
 
 ### 5.3 Cloud System Architecture
-To satisfy the requirements, a highly decoupled, dual-track **Lambda Architecture** was engineered, ensuring sub-300ms latency for live alerts while preserving 100% data durability for historic analysis (Amazon Web Services, 2026c).
+To satisfy the requirements, a highly decoupled, dual-track **Lambda Architecture** was engineered, ensuring sub-300ms latency for live alerts while preserving 100% data durability for historic analysis.
 
-![Figure 1: CrowdSync Pulse-to-Pixel Architecture](./architecture_final.png)
+![Figure 1: CrowdSync Professional Serverless Architecture](./architecture_final.png)
 
-The system is structured into four distinct functional layers:
-1.  **The Ingestion & Edge Layer**: Telemetry begins at the venue edge, where **CCTV Cameras** stream raw video to **Edge AI Gateways**. Local inference extracts anonymous metadata, which is transmitted via HTTPS to **Amazon API Gateway**. This entry point is shielded by **AWS WAF**, which performs Layer 7 inspection to mitigate bot traffic and SQL injection. An **SQS Elastic Buffer** acts as a "shock absorber," decoupling the high-velocity edge from the processing logic to prevent payload loss during crowd surges.
-2.  **The Speed Layer (Real-Time State)**: Upon message arrival in SQS, the **Ingest Lambda** executes heuristic analytics (velocity and surge detection). It performs a synchronous write to the **DynamoDB Zones Table**, representing the authoritative "live state" of the venue. **DynamoDB Streams** instantly detect this change, triggering a **Notifier Lambda** that pushes the update to **AWS AppSync**.
-3.  **The Retrieval Layer (Data Distribution)**: Unlike traditional REST APIs, CrowdSync utilizes **GraphQL WebSockets** via AWS AppSync. A dedicated **Query Lambda** acts as a data source, merging live telemetry from the Zones table with static configuration from the **Metadata Table** (e.g., zone capacities), providing the React dashboard with a unified, enriched data model without requiring client-side joins.
-4.  **The Batch Layer (Durability)**: Simultaneously, every telemetry pulse is logged to a **Hive-Partitioned S3 Data Lake**. Data is automatically organized by `year/month/day/zone`, making it ready for professional "Big Data" analysis via Amazon Athena or SageMaker.
+The system is structured into four distinct functional layers as visualized in Figure 1:
+1.  **The Edge Layer**: CCTV Cameras stream raw video to an **Edge AI Gateway**. Local inference extracts anonymous metadata, which is transmitted via HTTPS to **Amazon API Gateway**.
+2.  **Ingestion & Security**: API Gateway is shielded by **AWS WAF** for Layer 7 protection. A custom **Lambda 1 (Authorizer)** validates incoming pulses by performing a **Look-up Secret** against the **AWS SSM Parameter Store**. Traffic is then buffered into **Amazon SQS** to decouple ingestion from processing.
+3.  **Core Processing**: **Lambda 2 (Ingest)** pulls batches from SQS and performs a **Dual-Write** operation: logging raw JSONs to the **Amazon S3 Audit Data Lake** and updating the live state in **Amazon DynamoDB**.
+4.  **Real-Time Pipeline**:
+    *   **DynamoDB Streams** detect changes in the Zones table, triggering **Lambda 3 (Notifier)** to fire real-time mutations to **AWS AppSync**.
+    *   **Lambda 4 (Query/Read)** serves as a specialized data source for AppSync, fetching merged state and metadata for complex frontend queries.
+5.  **Front-end Delivery**: The **React.js Dashboard** is hosted in a **Private S3 Bucket**, served via **Amazon CloudFront** using **Origin Access Control (OAC)** and strict **Bucket Policies**. Traffic is encrypted via **AWS Certificate Manager (TLS)**. **Amazon Cognito** handles secure user authentication, while the client communicates with AppSync via **GraphQL & WebSockets** for instant updates.
 
 ## 6. Cloud Implementation
 
 ### 6.1 Solution Implementation & Justification
-The entire AWS ecosystem was implemented using **Infrastructure as Code (IaC)** via the AWS Serverless Application Model (SAM) and CloudFormation (Amazon Web Services, 2026a). This approach ensures the environment is reproducible, strictly version-controlled, and follows the **AWS Well-Architected Framework**.
+The entire AWS ecosystem was implemented using **Infrastructure as Code (IaC)** via the AWS Serverless Application Model (SAM) and CloudFormation. This ensures a reproducible, version-controlled environment that adheres to the **AWS Well-Architected Framework**.
 
-*   **Unified Automation**: A custom Python Operations Manager (`manage.py`) orchestrates the entire lifecycle. It handles SAM builds, Lambda packaging, CloudFormation deployment, and the automated seeding of Cognito administrative users.
-*   **Security-First Deployment**: The implementation enforces the **Principle of Least Privilege**. Every Lambda function is scoped to a specific IAM Role with fine-grained permissions (e.g., the Notifier Lambda can only publish to AppSync and read from a specific DynamoDB Stream).
-*   **Edge-to-Cloud Integration**: The React frontend is deployed to an **S3 Bucket** and distributed globally via **Amazon CloudFront**, ensuring that the "Mission Control" dashboard is highly available and protected by a Global WAF at the network edge.
-*   **Operational Excellence**: By abstracting the hardware into serverless components, the platform achieves a "Zero-Idle" cost model, scaling effectively to $0 when the venue is empty, while maintaining the capacity to handle hundreds of thousands of events during peak operation.
+*   **Automation**: A unified Python orchestrator (`manage.py`) automates the deployment of the CloudFormation stack, Cognito user seeding, and the S3/CloudFront frontend sync.
+*   **Security & Encryption**: The architecture enforces a **Zero-Trust** model, utilizing WAF at the edge, SSM for secret management, OAC for private bucket access, and Certificate Manager for end-to-end TLS encryption.
+*   **Decoupled Scaling**: By using SQS as a shock absorber and DynamoDB Streams for event-driven broadcasting, the system scales seamlessly to handle thousands of concurrent pulses while maintaining a low-cost, serverless footprint.
 
 ### 6.2 Implementation Screenshots
 > [!NOTE]
@@ -155,6 +157,14 @@ The architecture is optimized for **Operational Economics**, demonstrating how p
 | **TOTAL** | | **$18.27** | Approximately **$0.76 per camera per month**. |
 
 *Note: By utilizing serverless components, the compute and storage costs are effectively $0 for this scale, meaning the venue only pays for high-end security protection (WAF).*
+
+### 7.1 Future Evolution & Enterprise Branding
+To transition from a prototype to a commercial enterprise solution, the following additional networking costs would apply:
+
+| Service | Component | Projected Cost | Rationale |
+| :--- | :--- | :--- | :--- |
+| **Route 53** | Custom Domain Management | **$0.50** | Flat fee for a Hosted Zone (e.g., `crowdsync.com`) |
+| **Route 53** | DNS Queries | **$0.01** | Scaled cost for 34.5K lookups |
 
 *Note: SQS batching acts as a cost-control mechanism, reducing Lambda invocations by up to 90% and preventing massive compute bills during traffic spikes.*
 
