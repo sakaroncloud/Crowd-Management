@@ -105,7 +105,7 @@ To understand how CrowdSync achieves sub-300ms latency while ensuring 100% data 
 4.  **Auth Lambda**: Performs a secure lookup in **SSM Parameter Store** to verify the `x-api-token`. If valid, it returns an IAM policy allowing the data to pass.
 
 ### Stage 2: The "Shock Absorber" (SQS)
-5.  **Amazon SQS**: Instead of going straight to a database (which could crash under sudden spikes), data is buffered in SQS. This ensures that even if traffic triples during a "Half-Time" rush, no data is ever lost.
+5.  **Amazon SQS**: Instead of direct database writes (which could fail during "bursty" events like half-time rushes), data is buffered in SQS. This provides a 100% elastic buffer that handles unpredictable spikes instantly without the cost or complexity of Kinesis shards. It treats each CCTV pulse as a discrete, independent event for processing.
 
 ### Stage 3: Processing & The Analytics Fork
 6.  **Ingest Lambda**: Pulls batches of messages from SQS. It performs a **Dual-Write**:

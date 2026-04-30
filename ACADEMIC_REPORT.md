@@ -93,9 +93,10 @@ While the serverless abstraction hides physical infrastructure from the develope
 
 ### 5.2 Rationale for Choice of Services
 **Architectural Trade-off: SQS over Kinesis Data Streams**
-While Amazon Kinesis Data Streams is traditionally considered the industry standard for real-time streaming architectures, this project strategically pivoted to an SQS-based ingestion model. This decision was driven by two key factors:
-1.  **Environmental Constraints**: Initial deployment revealed account-level subscription limitations (`SubscriptionRequiredException`) for Kinesis provisioning. Adapting architecture to strict environmental constraints is a critical real-world engineering requirement.
-2.  **Cost and Complexity**: Kinesis requires managing and paying for provisioned data shards continuously. For the bursty, intermittent nature of venue crowd management, SQS (purely pay-per-request) combined with DynamoDB Streams provides a highly decoupled, fault-tolerant "shock absorber" at a fraction of the idle cost, while still easily achieving the <300ms latency target.
+While Amazon Kinesis Data Streams is traditionally considered the industry standard for high-volume streaming, this project strategically selected an SQS-based ingestion model. This decision was driven by three critical factors:
+1.  **Bursty Telemetry & Elasticity**: CCTV-based crowd monitoring is inherently "bursty" (e.g., traffic spikes during event intermissions). SQS provides a zero-management "shock absorber" that scales from 0 to thousands of messages per second instantly. Unlike Kinesis, which requires manual or auto-scaling of shards, SQS handles unpredictable peaks with 100% elasticity and zero idle cost.
+2.  **Discrete Event Processing**: Our system processes discrete state updates (e.g., "Zone A occupancy: 85%") rather than continuous, high-bandwidth raw data streams. SQS is optimized for this decoupled, event-driven model, ensuring each pulse is processed as an independent, durable task.
+3.  **Environmental Constraints**: Initial deployment revealed account-level limitations (`SubscriptionRequiredException`) for Kinesis. Adapting to such constraints is a key real-world engineering competency, and SQS combined with DynamoDB Streams provided a functionally equivalent real-time bridge with significantly lower operational complexity.
 
 ### 5.3 Cloud System Architecture
 To satisfy the requirements, a highly decoupled, dual-track **Lambda Architecture** was engineered (Amazon Web Services, 2026c).
